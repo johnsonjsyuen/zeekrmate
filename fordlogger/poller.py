@@ -2,7 +2,6 @@ import logging
 import time
 from datetime import datetime, timezone
 
-from .api import FordAPI
 from .config import INTERVALS
 from .state_machine import StateMachine, VehicleState
 from . import db
@@ -13,10 +12,10 @@ log = logging.getLogger("fordlogger")
 
 
 class Poller:
-    def __init__(self, cfg: dict, conn, apis: list):
+    def __init__(self, cfg: dict, conn, providers):
         self.cfg = cfg
         self.conn = conn
-        self.apis = apis if isinstance(apis, list) else [apis]
+        self.providers = providers if isinstance(providers, list) else [providers]
         self._db_failures = 0
         self.machines: dict[str, StateMachine] = {}
         self._drive_start: dict[str, datetime] = {}
@@ -68,22 +67,28 @@ class Poller:
 
         now = time.time()
 
-        for api in self.apis:
+        for provider in self.providers:
+            provider_name = provider.name
             # Periodic garage update
             if now - self._last_garage_update > self.garage_interval_s:
                 try:
-                    vehicles = api.get_garage()
+                    vehicles = provider.get_vehicles()
                     for v in vehicles:
                         db.upsert_vehicle(self.conn, v)
                     log.info("Garage updated: %d vehicle(s)", len(vehicles))
                 except Exception as e:
-                    log.error("Garage error: %s", e)
+                    log.error("Provider %s garage error: %s", provider_name, e)
 
             # Telemetry
             try:
-                positions = api.get_telemetry()
+                positions = provider.get_telemetry()
             except Exception as e:
-                log.error("Telemetry error: %s", e, exc_info=True)
+                log.error(
+                    "Provider %s telemetry error: %s",
+                    provider_name,
+                    e,
+                    exc_info=True,
+                )
                 continue
 
             for pos in positions:

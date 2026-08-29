@@ -1,14 +1,13 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
 
 from .config import load_config
 from .auth import do_auth_flow
-from .api import FordAPI
 from . import db
 from .poller import Poller
 from .geocoder import backfill_addresses
+from .providers import create_providers
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,28 +15,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger("fordlogger")
-
-
-def _discover_apis(cfg: dict) -> list:
-    """Return one FordAPI per token file found.
-    Looks in FORDLOGGER_TOKEN_DIR (default: current dir) for tokens_{VIN}.json files.
-    Falls back to tokens.json for legacy single-vehicle setups.
-    """
-    import os
-    token_dir = Path(os.environ.get("FORDLOGGER_TOKEN_DIR", "."))
-    vin_files = sorted(token_dir.glob("tokens_*.json"))
-    if vin_files:
-        apis = []
-        for tf in vin_files:
-            apis.append(FordAPI({**cfg, "token_file": str(tf)}))
-        log.info("Found %d token file(s): %s", len(apis), [str(f) for f in vin_files])
-        return apis
-    # Legacy fallback
-    legacy = Path(cfg.get("token_file", "tokens.json"))
-    if legacy.exists():
-        log.info("Using legacy token file: %s", legacy)
-        return [FordAPI(cfg)]
-    return []
 
 
 def main():
@@ -66,11 +43,11 @@ def main():
         backfill_addresses(conn)
         return
 
-    apis = _discover_apis(cfg)
-    if not apis:
+    providers = create_providers(cfg)
+    if not providers:
         log.error("No token files found — run: python -m fordlogger --auth")
         sys.exit(1)
-    poller = Poller(cfg, conn, apis)
+    poller = Poller(cfg, conn, providers)
 
     if args.once:
         poller.poll_once()
