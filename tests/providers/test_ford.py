@@ -1,5 +1,5 @@
 import importlib
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -37,3 +37,19 @@ def test_get_telemetry_delegates_empty_output_unchanged():
 
     assert actual is expected
     client.get_telemetry.assert_called_once_with()
+
+
+def test_config_constructs_and_stores_delegating_client():
+    ford = _load_ford_module()
+    cfg = {"api_base": "https://example.invalid"}
+    expected = [Vehicle(vin="VIN-1")]
+    created_client = Mock(name="created_ford_client")
+    created_client.get_garage.return_value = expected
+
+    with patch.object(ford, "FordAPI", return_value=created_client) as ford_api:
+        provider = ford.FordProvider(cfg)
+
+    ford_api.assert_called_once_with(cfg)
+    assert provider.client is created_client
+    assert provider.get_vehicles() is expected
+    created_client.get_garage.assert_called_once_with()
