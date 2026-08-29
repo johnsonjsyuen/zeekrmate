@@ -18,24 +18,36 @@ def test_per_vin_discovery_is_sorted_and_does_not_mutate_config(
     tmp_path, monkeypatch
 ):
     factory, ford = _load_provider_modules()
-    (tmp_path / "tokens_Z.json").touch()
-    (tmp_path / "tokens_A.json").touch()
-    (tmp_path / "unrelated.json").touch()
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.delenv("FORDLOGGER_TOKEN_DIR", raising=False)
+    token_dir = tmp_path / "configured-token-dir"
+    token_dir.mkdir()
+    (token_dir / "tokens_Z.json").touch()
+    (token_dir / "tokens_A.json").touch()
+    (token_dir / "unrelated.json").touch()
+    empty_cwd = tmp_path / "empty-cwd"
+    empty_cwd.mkdir()
+    monkeypatch.chdir(empty_cwd)
+    monkeypatch.setenv("FORDLOGGER_TOKEN_DIR", str(token_dir))
     cfg = {"api_base": "https://example.invalid", "token_file": "original.json"}
     original = copy.deepcopy(cfg)
+    first_client = object()
+    second_client = object()
 
-    with patch.object(ford, "FordAPI") as ford_api:
+    with patch.object(
+        ford, "FordAPI", side_effect=[first_client, second_client]
+    ) as ford_api:
         providers = factory.create_providers(cfg)
 
     assert len(providers) == 2
     expected_configs = [
-        {**cfg, "token_file": "tokens_A.json"},
-        {**cfg, "token_file": "tokens_Z.json"},
+        {**cfg, "token_file": str(token_dir / "tokens_A.json")},
+        {**cfg, "token_file": str(token_dir / "tokens_Z.json")},
     ]
     assert ford_api.call_args_list == [call(item) for item in expected_configs]
     assert all(args.args[0] is not cfg for args in ford_api.call_args_list)
+    assert [provider.client for provider in providers] == [
+        first_client,
+        second_client,
+    ]
     assert cfg == original
 
 
