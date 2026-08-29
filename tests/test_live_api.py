@@ -14,6 +14,7 @@ from fordlogger.api import FordAPI
 from fordlogger.models import Vehicle
 from fordlogger import db
 from fordlogger.poller import Poller
+from fordlogger.providers.ford import FordProvider
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("SKIP_LIVE_TESTS", "0") == "1",
@@ -112,8 +113,11 @@ class TestLiveFullPoll:
         mock_api.get_garage.return_value = garage_result
         mock_api.get_telemetry.return_value = telemetry_result
 
-        poller = Poller(live_cfg, live_conn, mock_api)
+        poller = Poller(live_cfg, live_conn, FordProvider(client=mock_api))
         poller.poll_once()
+
+        mock_api.get_garage.assert_called_once_with()
+        mock_api.get_telemetry.assert_called_once_with()
 
         with live_conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) FROM vehicles")

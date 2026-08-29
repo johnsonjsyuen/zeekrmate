@@ -68,7 +68,11 @@ class Poller:
         now = time.time()
 
         for provider in self.providers:
-            provider_name = provider.name
+            try:
+                provider_name = provider.name
+            except Exception:
+                provider_name = type(provider).__name__
+                log.warning("Provider name unavailable; using %s", provider_name)
             # Periodic garage update
             if now - self._last_garage_update > self.garage_interval_s:
                 try:

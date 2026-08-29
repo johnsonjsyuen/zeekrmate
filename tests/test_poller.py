@@ -2,6 +2,8 @@ from datetime import datetime, timezone, timedelta
 import ast
 import inspect
 
+import pytest
+
 from fordlogger.poller import Poller
 import fordlogger.poller as poller_module
 from fordlogger.config import INTERVALS
@@ -20,13 +22,17 @@ class FakeProvider:
         vehicle_error=None,
         telemetry_error=None,
     ):
-        self.name = name
+        self._name = name
         self.vehicles = list(vehicles or [])
         self.positions = list(positions or [])
         self.vehicle_error = vehicle_error
         self.telemetry_error = telemetry_error
         self.vehicle_calls = 0
         self.telemetry_calls = 0
+
+    @property
+    def name(self):
+        return self._name
 
     def get_vehicles(self):
         self.vehicle_calls += 1
@@ -39,6 +45,12 @@ class FakeProvider:
         if self.telemetry_error:
             raise self.telemetry_error
         return self.positions
+
+
+class BrokenNameProvider(FakeProvider):
+    @property
+    def name(self):
+        raise RuntimeError("provider name unavailable")
 
 
 class TestPoller:
@@ -251,17 +263,55 @@ class TestPoller:
         assert db.get_latest_position(conn, "TEST001") is not None
         assert "first-provider" in caplog.text
 
+    def test_broken_provider_name_uses_fallback_and_does_not_block_later_provider(
+        self, conn, cfg, caplog
+    ):
+        db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
+        broken = BrokenNameProvider(
+            telemetry_error=RuntimeError("telemetry down"),
+        )
+        later = FakeProvider(
+            name="later-provider",
+            positions=[self._make_position()],
+        )
+        poller = Poller(cfg, conn, [broken, later])
+
+        try:
+            poller.poll_once()
+        except RuntimeError as exc:
+            pytest.fail(f"provider metadata escaped poll isolation: {exc}")
+
+        assert broken.vehicle_calls == 1
+        assert broken.telemetry_calls == 1
+        assert later.telemetry_calls == 1
+        assert db.get_latest_position(conn, "TEST001") is not None
+        assert "BrokenNameProvider" in caplog.text
+
 
 def test_poller_has_no_ford_api_or_legacy_api_dependencies():
     tree = ast.parse(inspect.getsource(poller_module))
     forbidden = []
     for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom):
+        if isinstance(node, ast.Import):
+            if any(alias.name == "fordlogger.api" for alias in node.names):
+                forbidden.append("fordlogger.api import")
+        elif isinstance(node, ast.ImportFrom):
+            module = node.module or ""
+            if module in {"api", "fordlogger.api"}:
+                forbidden.append(f"{module} import")
+            elif module in {"", "fordlogger"} and any(
+                alias.name == "api" for alias in node.names
+            ):
+                forbidden.append("fordlogger.api import")
             if any(alias.name == "FordAPI" for alias in node.names):
                 forbidden.append("FordAPI import")
         elif isinstance(node, ast.Name) and node.id == "FordAPI":
             forbidden.append("FordAPI name")
-        elif isinstance(node, ast.Attribute) and node.attr in {"get_garage", "apis"}:
+        elif isinstance(node, ast.Attribute) and node.attr in {
+            "FordAPI",
+            "get_garage",
+            "apis",
+        }:
             forbidden.append(node.attr)
 
     assert forbidden == []

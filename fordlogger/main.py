@@ -7,7 +7,7 @@ from .auth import do_auth_flow
 from . import db
 from .poller import Poller
 from .geocoder import backfill_addresses
-from .providers import create_providers
+from .providers.factory import create_providers
 
 logging.basicConfig(
     level=logging.INFO,
