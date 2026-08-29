@@ -30,5 +30,6 @@ archive/
 .pytest_cache/
 
 # Misc
+.worktrees/
 cloudflared.deb
 *.old
