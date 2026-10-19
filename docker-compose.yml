@@ -2,12 +2,20 @@ services:
   fordlogger:
     build: .
     volumes:
-      - ./config.json:/app/config.json
+      # config.json must exist on the host first (no directory is created).
+      - type: bind
+        source: ./config.json
+        target: /app/config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      # Only data mount: Zeekr session (zeekr_session.json) and captures.
       - ./data:/app/data
     environment:
       - FORDLOGGER_STORE_RAW_JSON=${FORDLOGGER_STORE_RAW_JSON:-true}
       - FORDLOGGER_GEOCODING=${FORDLOGGER_GEOCODING:-true}
       - FORDLOGGER_STATE_DIR=/app/data
+      - ZEEKR_CAPTURE_DIR=/app/data/captures
     env_file:
       - path: .env
         required: false

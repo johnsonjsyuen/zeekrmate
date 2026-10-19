@@ -26,3 +26,4 @@ archive/
 LICENSE
 cloudflared.deb
 backup.sh
+captures/
