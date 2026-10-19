@@ -1,6 +1,7 @@
 from dataclasses import FrozenInstanceError
 import importlib
 import json
+import pathlib
 import subprocess
 import sys
 
@@ -71,6 +72,7 @@ print(json.dumps(loaded))
         check=False,
         capture_output=True,
         text=True,
+        cwd=str(pathlib.Path(__file__).resolve().parents[2]),
     )
 
     assert completed.returncode == 0, completed.stderr

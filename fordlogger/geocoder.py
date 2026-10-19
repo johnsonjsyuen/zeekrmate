@@ -6,50 +6,75 @@ import requests
 log = logging.getLogger("fordlogger")
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+USER_AGENT = "zeekrmate/0.1 (+https://github.com/johnsonjsyuen/zeekrmate)"
+REQUEST_TIMEOUT_S = 5
+MIN_REQUEST_GAP_S = 1.1  # Nominatim usage policy: at most 1 request/second
+CACHE_DECIMALS = 4  # ~11 m; Nominatim policy requires caching results
+_CACHE_MAX = 2048
+
 _last_request_time = 0.0
+_cache: dict[tuple[float, float], str | None] = {}
+
+
+def clear_cache():
+    _cache.clear()
 
 
 def reverse_geocode(lat: float, lon: float) -> str | None:
     """Reverse geocode lat/lon to a short address via Nominatim.
 
-    Respects Nominatim's 1 request/second rate limit.
-    Returns 'Street, City' or None on failure.
+    Results (including failures to find an address) are cached in memory by
+    coordinates rounded to CACHE_DECIMALS. Network errors are not cached.
+    Respects Nominatim's 1 request/second rate limit, also after failures.
+    Returns 'Street, City, CC' or None on failure.
     """
     global _last_request_time
 
     if lat is None or lon is None:
         return None
 
-    # Rate limit: 1 req/sec
+    key = (round(float(lat), CACHE_DECIMALS), round(float(lon), CACHE_DECIMALS))
+    if key in _cache:
+        return _cache[key]
+
     elapsed = time.time() - _last_request_time
-    if elapsed < 1.1:
-        time.sleep(1.1 - elapsed)
+    if elapsed < MIN_REQUEST_GAP_S:
+        time.sleep(MIN_REQUEST_GAP_S - elapsed)
 
     try:
         r = requests.get(
             NOMINATIM_URL,
             params={
-                "lat": lat,
-                "lon": lon,
+                "lat": key[0],
+                "lon": key[1],
                 "format": "json",
                 "zoom": 18,
                 "addressdetails": 1,
             },
-            headers={"User-Agent": "FordLogger/0.1 (https://github.com/lutzerb/fordlogger)"},
-            timeout=10,
+            headers={"User-Agent": USER_AGENT},
+            timeout=REQUEST_TIMEOUT_S,
         )
-        _last_request_time = time.time()
         r.raise_for_status()
         data = r.json()
     except Exception as e:
-        log.warning("Geocoding failed for %.6f, %.6f: %s", lat, lon, e)
+        log.warning("Geocoding failed for %.4f, %.4f: %s", key[0], key[1], e)
         return None
+    finally:
+        _last_request_time = time.time()
 
-    addr = data.get("address", {})
+    address = _format_address(data)
+    if len(_cache) >= _CACHE_MAX:
+        _cache.pop(next(iter(_cache)))
+    _cache[key] = address
+    return address
+
+
+def _format_address(data: dict) -> str | None:
+    addr = data.get("address", {}) or {}
     road = addr.get("road") or addr.get("pedestrian") or addr.get("footway") or ""
     house = addr.get("house_number") or ""
     city = addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality") or ""
-    country = addr.get("country_code", "").upper()
+    country = (addr.get("country_code") or "").upper()
 
     parts = []
     if road:
@@ -59,7 +84,35 @@ def reverse_geocode(lat: float, lon: float) -> str | None:
     if country:
         parts.append(country)
 
-    return ", ".join(parts) if parts else data.get("display_name", "")[:100]
+    return ", ".join(parts) if parts else (data.get("display_name") or "")[:100] or None
+
+
+def geocode_trip(conn, trip):
+    """Fill start/end addresses of a stored trip (after it was inserted)."""
+    if trip is None or trip.id is None:
+        return
+    start = reverse_geocode(trip.start_lat, trip.start_lon)
+    end = reverse_geocode(trip.end_lat, trip.end_lon)
+    trip.start_address, trip.end_address = start, end
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE trips SET start_address = COALESCE(start_address, %s), "
+            "end_address = COALESCE(end_address, %s) WHERE id = %s",
+            (start, end, trip.id),
+        )
+
+
+def geocode_charge_session(conn, cs):
+    """Fill the address of a stored charge session (after it was inserted)."""
+    if cs is None or cs.id is None:
+        return
+    address = reverse_geocode(cs.lat, cs.lon)
+    cs.address = address
+    with conn.cursor() as cur:
+        cur.execute(
+            "UPDATE charge_sessions SET address = COALESCE(address, %s) WHERE id = %s",
+            (address, cs.id),
+        )
 
 
 def backfill_addresses(conn):

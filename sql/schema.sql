@@ -1,4 +1,14 @@
--- FordLogger Schema
+-- FordLogger Schema -- v1 BASELINE (frozen when PR 2 merges)
+--
+-- Applied on every start by fordlogger.db.ensure_schema() (and, on an empty
+-- Docker volume, by docker-entrypoint-initdb.d). Every statement must stay
+-- idempotent (IF NOT EXISTS).
+--
+-- Do not change table definitions here after PR 2: CREATE TABLE IF NOT EXISTS
+-- skips a table that already exists, so a column added here never reaches an
+-- existing database. Add sql/migrations/NNNN_<name>.sql instead; ensure_schema()
+-- applies each pending migration once, in order, after this file, and records
+-- it in schema_migrations (defined at the end of this file).
 
 CREATE TABLE IF NOT EXISTS vehicles (
     vin             TEXT PRIMARY KEY,
@@ -41,7 +51,13 @@ CREATE TABLE IF NOT EXISTS positions (
     door_lock_status     TEXT,
     ignition_status      TEXT,
     state                TEXT,
-    raw_json             JSONB
+    raw_json             JSONB,
+    -- ts = most authoritative vehicle/provider timestamp; observed_at = when the
+    -- logger fetched the data (roadmap "Timestamp policy").
+    observed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Provider-computed hash of the canonicalised snapshot; NULL means the
+    -- poller falls back to timestamp-based deduplication (roadmap PR 4).
+    snapshot_key         TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_positions_ts ON positions(ts);
@@ -108,3 +124,9 @@ CREATE TABLE IF NOT EXISTS states (
 );
 
 CREATE INDEX IF NOT EXISTS idx_states_vin_ts ON states(vin, ts);
+
+-- One row per applied sql/migrations/NNNN_<name>.sql file (version = file stem).
+CREATE TABLE IF NOT EXISTS schema_migrations (
+    version    TEXT PRIMARY KEY,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
