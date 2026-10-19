@@ -8,7 +8,7 @@
   DEBUG. Its loggers, and the logger we inject into ZeekrClient, are pinned
   to WARNING regardless of the root level, and a redacting filter is added.
   The same filter is attached to the root handlers, where it acts on records
-  from zeekr_ev_api.* / fordlogger.zeekr.client loggers, so library loggers
+  from zeekr_ev_api.* / zeekrmate.zeekr.client loggers, so library loggers
   created later (logger filters are not inherited) are redacted too.
 """
 
@@ -18,7 +18,7 @@ import re
 from ...logsafe import VIN_FILTER, VIN_RE, install_handler_filters
 
 LIBRARY_LOGGER_NAME = "zeekr_ev_api"
-CLIENT_LOGGER_NAME = "fordlogger.zeekr.client"
+CLIENT_LOGGER_NAME = "zeekrmate.zeekr.client"
 MIN_LIBRARY_LEVEL = logging.WARNING
 
 _MAX_SUMMARY = 120

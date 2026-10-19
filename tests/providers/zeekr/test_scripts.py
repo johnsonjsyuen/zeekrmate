@@ -29,7 +29,7 @@ def env(tmp_path):
     keys = ("username", "password", "hmac_access_key", "hmac_secret_key", "password_public_key",
             "prod_secret", "vin_key", "vin_iv")
     e = {name: SECRETS[k] for name, k in zip(ENV_NAMES, keys)}
-    e["FORDLOGGER_STATE_DIR"] = str(tmp_path / "state")
+    e["ZEEKRMATE_STATE_DIR"] = str(tmp_path / "state")
     return e
 
 
@@ -98,12 +98,12 @@ def test_capture_writes_files_with_private_modes(env, tmp_path):
     assert ("get_trip_trackpoints", VIN_A) in calls
     _assert_no_secrets(text)
     # session store reused / written without password
-    sess = Path(env["FORDLOGGER_STATE_DIR"]) / "zeekr_session.json"
+    sess = Path(env["ZEEKRMATE_STATE_DIR"]) / "zeekr_session.json"
     assert sess.exists() and SECRETS["password"] not in sess.read_text()
 
 
 def test_capture_only_read_calls(env, tmp_path):
-    from fordlogger.providers.zeekr.session import READ_ONLY_METHODS
+    from zeekrmate.providers.zeekr.session import READ_ONLY_METHODS
 
     _run(["--out", str(tmp_path / "c")], env)
     for client in FakeClient.instances:
@@ -185,7 +185,7 @@ def test_sanitiser_replaces_identifiers_and_rounds_coords(tmp_path):
     for p in out.iterdir():
         assert stat.S_IMODE(p.stat().st_mode) == 0o600
     # the sanitised fixture still maps through the provider mapper
-    from fordlogger.providers.zeekr.mapper import map_position
+    from zeekrmate.providers.zeekr.mapper import map_position
     pos = map_position(vin_ph, status)
     assert pos.soc_pct == 78.0 and pos.lat == -33.87
 

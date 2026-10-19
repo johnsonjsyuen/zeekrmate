@@ -1,6 +1,6 @@
--- FordLogger Schema -- v1 BASELINE (frozen when PR 2 merges)
+-- zeekrmate schema -- v1 BASELINE (frozen when PR 2 merges)
 --
--- Applied on every start by fordlogger.db.ensure_schema() (and, on an empty
+-- Applied on every start by zeekrmate.db.ensure_schema() (and, on an empty
 -- Docker volume, by docker-entrypoint-initdb.d). Every statement must stay
 -- idempotent (IF NOT EXISTS).
 --

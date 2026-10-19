@@ -12,7 +12,7 @@ from .session import ClientFactory, ZeekrAuthError, ZeekrProviderError, ZeekrSes
 from .session_store import SessionStore
 from .settings import ZeekrSettings, load_settings, resolve_state_dir, session_path
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 
 def _clean_str(value) -> Optional[str]:

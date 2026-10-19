@@ -4,12 +4,12 @@ import inspect
 
 import pytest
 
-from fordlogger.poller import Poller
-import fordlogger.poller as poller_module
-from fordlogger.config import INTERVALS
-from fordlogger.models import Vehicle, Position
-from fordlogger.state_machine import VehicleState
-from fordlogger import db
+from zeekrmate.poller import Poller
+import zeekrmate.poller as poller_module
+from zeekrmate.config import INTERVALS
+from zeekrmate.models import Vehicle, Position
+from zeekrmate.state_machine import VehicleState
+from zeekrmate import db
 
 from tests.fakes import FakeProvider, BrokenNameProvider
 
@@ -261,16 +261,16 @@ def test_poller_has_no_ford_api_or_legacy_api_dependencies():
     forbidden = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            if any(alias.name == "fordlogger.api" for alias in node.names):
-                forbidden.append("fordlogger.api import")
+            if any(alias.name == "zeekrmate.api" for alias in node.names):
+                forbidden.append("zeekrmate.api import")
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            if module in {"api", "fordlogger.api"}:
+            if module in {"api", "zeekrmate.api"}:
                 forbidden.append(f"{module} import")
-            elif module in {"", "fordlogger"} and any(
+            elif module in {"", "zeekrmate"} and any(
                 alias.name == "api" for alias in node.names
             ):
-                forbidden.append("fordlogger.api import")
+                forbidden.append("zeekrmate.api import")
             if any(alias.name == "FordAPI" for alias in node.names):
                 forbidden.append("FordAPI import")
         elif isinstance(node, ast.Name) and node.id == "FordAPI":

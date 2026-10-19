@@ -40,7 +40,7 @@ from enum import Enum
 from .config import mask_vin
 from .models import Position
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 DRIVING_SPEED_KMH = 1.0  # GPS noise reports tiny non-zero speeds when parked
 MOTION_ODOMETER_KM = 0.1  # odometer increase between readings that means driving

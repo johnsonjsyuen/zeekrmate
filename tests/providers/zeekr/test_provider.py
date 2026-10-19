@@ -6,8 +6,8 @@ from datetime import datetime, timezone
 import pytest
 from zeekr_ev_api.exceptions import ZeekrException
 
-from fordlogger.models import Position, Vehicle
-from fordlogger.providers.zeekr.session import (
+from zeekrmate.models import Position, Vehicle
+from zeekrmate.providers.zeekr.session import (
     READ_ONLY_METHODS,
     ReadOnlyClient,
     ReadOnlyViolation,
@@ -211,13 +211,13 @@ def test_stored_session_is_reused_without_login(make_provider):
 
 
 def test_build_provider_makes_no_calls(tmp_path):
-    from fordlogger.providers.zeekr.provider import build_provider
+    from zeekrmate.providers.zeekr.provider import build_provider
 
     env = {
         "ZEEKR_USERNAME": "u", "ZEEKR_PASSWORD": "p", "ZEEKR_HMAC_ACCESS_KEY": "a",
         "ZEEKR_HMAC_SECRET_KEY": "b", "ZEEKR_PASSWORD_PUBLIC_KEY": "c",
         "ZEEKR_PROD_SECRET": "d", "ZEEKR_VIN_KEY": "e", "ZEEKR_VIN_IV": "f",
-        "FORDLOGGER_STATE_DIR": str(tmp_path),
+        "ZEEKRMATE_STATE_DIR": str(tmp_path),
     }
     built = []
 

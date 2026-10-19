@@ -1,5 +1,5 @@
 """Test doubles shared across the suite."""
-from fordlogger.providers.base import VehicleProvider
+from zeekrmate.providers.base import VehicleProvider
 
 
 class FakeProvider(VehicleProvider):

@@ -1,6 +1,6 @@
 import pytest
 
-import fordlogger.geocoder as geocoder
+import zeekrmate.geocoder as geocoder
 
 
 class _Resp:
@@ -61,7 +61,7 @@ def test_geocoding_failure_logs_no_coordinates(monkeypatch, caplog):
     """Security review #12: the requests error text contains the full URL."""
     import logging
     import requests
-    from fordlogger import geocoder
+    from zeekrmate import geocoder
 
     def boom(*a, **kw):
         raise requests.ConnectionError("HTTPSConnectionPool: /reverse?lat=-33.868812&lon=151.209312")

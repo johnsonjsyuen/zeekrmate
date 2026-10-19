@@ -3,7 +3,7 @@ import time
 
 import requests
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
 USER_AGENT = "zeekrmate/0.1 (+https://github.com/johnsonjsyuen/zeekrmate)"

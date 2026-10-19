@@ -20,7 +20,7 @@ from .redact import mask_vin, quiet_library_loggers, safe_error
 from .session_store import SessionStore
 from .settings import ZeekrSettings
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 READ_ONLY_METHODS = frozenset({
     "login",

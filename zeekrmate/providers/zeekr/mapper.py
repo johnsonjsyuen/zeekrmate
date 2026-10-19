@@ -1,4 +1,4 @@
-"""Map Zeekr API payloads to fordlogger.models.Position.
+"""Map Zeekr API payloads to zeekrmate.models.Position.
 
 PROVISIONAL — verify against your own 7X capture (scripts/dump_zeekr.py).
 

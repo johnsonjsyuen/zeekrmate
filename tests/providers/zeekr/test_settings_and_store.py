@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from fordlogger.providers.zeekr import session_store as store_mod
-from fordlogger.providers.zeekr.session_store import SessionStore
-from fordlogger.providers.zeekr.settings import (
+from zeekrmate.providers.zeekr import session_store as store_mod
+from zeekrmate.providers.zeekr.session_store import SessionStore
+from zeekrmate.providers.zeekr.settings import (
     SECRET_ENV_VARS,
     ZeekrConfigError,
     load_settings,
@@ -51,7 +51,7 @@ def test_settings_repr_hides_secrets(settings):
 
 
 def test_state_dir_resolution(tmp_path):
-    assert resolve_state_dir({}, {"FORDLOGGER_STATE_DIR": str(tmp_path)}) == tmp_path
+    assert resolve_state_dir({}, {"ZEEKRMATE_STATE_DIR": str(tmp_path)}) == tmp_path
     assert resolve_state_dir({"state_dir": "x"}, {}) == Path("x")
     assert resolve_state_dir({}, {}) == Path("data")
 

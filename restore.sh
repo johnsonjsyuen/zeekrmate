@@ -16,7 +16,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOGGER_SERVICE="${LOGGER_SERVICE:-fordlogger}"
+LOGGER_SERVICE="${LOGGER_SERVICE:-zeekrmate}"
 compose() { docker compose -f "$SCRIPT_DIR/docker-compose.yml" "$@"; }
 die() { echo "restore.sh: ERROR: $*" >&2; exit 1; }
 

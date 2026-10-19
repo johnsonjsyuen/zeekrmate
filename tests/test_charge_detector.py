@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 
-from fordlogger.models import Vehicle, Position
-from fordlogger import db
-from fordlogger.charge_detector import finalize_charge_session
+from zeekrmate.models import Vehicle, Position
+from zeekrmate import db
+from zeekrmate.charge_detector import finalize_charge_session
 
 
 class TestChargeDetector:

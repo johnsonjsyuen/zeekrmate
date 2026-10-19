@@ -1,5 +1,5 @@
 {
-  "uid": "fordlogger-raw-data",
+  "uid": "zeekrmate-raw-data",
   "title": "Raw Data Explorer",
   "description": "Browse raw telemetry, trips, charge sessions, and state transitions",
   "editable": true,
@@ -29,7 +29,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -157,14 +157,14 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts, soc_pct, range_km, odometer_km, speed_kmh, lat, lon, heading, bat_temp_c, outside_temp_c, bat_voltage, bat_current_a, energy_remaining_kwh, bat_capacity_kwh, plug_status, charge_status, charge_power_kw, charger_voltage, charger_current_a, tire_pressure_fl, tire_pressure_fr, tire_pressure_rl, tire_pressure_rr, door_lock_status, ignition_status, state, raw_json::text as raw_api_response FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) ORDER BY ts DESC LIMIT 500",
           "format": "table",
           "refId": "A"
         }
       ],
-      "description": "Columns such as bat_voltage, bat_current_a, charger_* and ignition_status were filled by the old Ford provider and may stay empty for Zeekr. raw_api_response holds the stored Zeekr payload (if FORDLOGGER_STORE_RAW_JSON is on)."
+      "description": "Columns such as bat_voltage, bat_current_a, charger_* and ignition_status were filled by the old Ford provider and may stay empty for Zeekr. raw_api_response holds the stored Zeekr payload (if ZEEKRMATE_STORE_RAW_JSON is on)."
     },
     {
       "id": 2,
@@ -178,7 +178,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -338,7 +338,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS \"start\", end_ts AS \"end\", duration_s AS \"duration\", distance_km, start_soc_pct AS \"start_soc\", end_soc_pct AS \"end_soc\", soc_used_pct AS \"soc_used\", energy_used_kwh, consumption_kwh_per_100km AS \"consumption\", avg_speed_kmh, max_speed_kmh, outside_temp_c AS \"temp\", start_address, end_address, start_lat, start_lon, end_lat, end_lon FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) ORDER BY start_ts DESC LIMIT 200",
           "format": "table",
@@ -358,7 +358,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -486,7 +486,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS \"start\", end_ts AS \"end\", duration_s AS \"duration\", start_soc_pct AS \"start_soc\", end_soc_pct AS \"end_soc\", soc_added_pct AS \"soc_added\", energy_added_kwh, max_power_kw, avg_power_kw, charge_type, outside_temp_c AS \"temp\", address, lat, lon FROM charge_sessions WHERE vin = '$vin' AND  $__timeFilter(start_ts) ORDER BY start_ts DESC LIMIT 200",
           "format": "table",
@@ -506,7 +506,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -537,7 +537,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts, prev_state, state, vin FROM states WHERE vin = '$vin' AND  $__timeFilter(ts) ORDER BY ts DESC LIMIT 200",
           "format": "table",
@@ -557,7 +557,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -582,7 +582,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT vin, make, model, model_year, color, nickname, engine_type, first_seen, updated_at FROM vehicles ORDER BY first_seen DESC",
           "format": "table",
@@ -599,7 +599,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,

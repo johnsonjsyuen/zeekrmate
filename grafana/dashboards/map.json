@@ -1,5 +1,5 @@
 {
-  "uid": "fordlogger-map",
+  "uid": "zeekrmate-map",
   "title": "Map",
   "description": "zeekrmate trip map with trip selector",
   "editable": true,
@@ -25,7 +25,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,
@@ -39,7 +39,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT 0 AS __value, 'All trips' AS __text UNION ALL SELECT id AS __value, to_char(start_ts AT TIME ZONE COALESCE((SELECT name FROM pg_timezone_names WHERE lower(name) = lower('${__timezone}') LIMIT 1), 'UTC'), 'YYYY-MM-DD HH24:MI') || ' — ' || COALESCE(start_address, '') || ' → ' || COALESCE(end_address, '') || ' (' || COALESCE(distance_km::text, '?') || ' km)' AS __text FROM trips WHERE vin = '$vin' AND $__timeFilter(start_ts) ORDER BY __value DESC",
         "refresh": 2,
@@ -65,14 +65,14 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT CASE WHEN $trip = 0 THEN SUM(distance_km) ELSE MAX(distance_km) END AS val FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND ($trip = 0 OR id = $trip)",
           "format": "table"
@@ -114,14 +114,14 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT CASE WHEN $trip = 0 THEN SUM(duration_s) ELSE MAX(duration_s) END AS val FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND ($trip = 0 OR id = $trip)",
           "format": "table"
@@ -162,14 +162,14 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ROUND(AVG(consumption_kwh_per_100km)::numeric, 1) AS val FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND ($trip = 0 OR id = $trip) AND consumption_kwh_per_100km > 0",
           "format": "table"
@@ -227,14 +227,14 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "targets": [
         {
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ROUND(AVG(avg_speed_kmh)::numeric, 1) AS val FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND ($trip = 0 OR id = $trip) AND avg_speed_kmh > 0",
           "format": "table"
@@ -270,7 +270,7 @@
       "type": "geomap",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 22,
@@ -283,7 +283,7 @@
           "refId": "routes",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT p.ts AS time, p.lat, p.lon, p.speed_kmh, t.id AS trip_id, t.distance_km FROM positions p JOIN trips t ON p.vin = t.vin AND p.ts BETWEEN t.start_ts AND t.end_ts WHERE t.vin = '$vin' AND  $__timeFilter(p.ts) AND p.lat IS NOT NULL AND p.lon IS NOT NULL AND ($trip = 0 OR t.id = $trip) ORDER BY t.id, p.ts",
           "format": "table",
@@ -293,7 +293,7 @@
           "refId": "starts",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS time, start_lat AS lat, start_lon AS lon, COALESCE(start_address, '') AS \"Address\", ROUND(distance_km::numeric, 1) AS \"Distance\", ROUND(consumption_kwh_per_100km::numeric, 1) AS \"kWh/100km\", ROUND(avg_speed_kmh::numeric, 0) AS \"Avg Speed\", id AS trip_id FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND start_lat IS NOT NULL AND ($trip = 0 OR id = $trip) ORDER BY start_ts",
           "format": "table",
@@ -303,7 +303,7 @@
           "refId": "ends",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT end_ts AS time, end_lat AS lat, end_lon AS lon, COALESCE(end_address, '') AS \"Address\", ROUND(distance_km::numeric, 1) AS \"Distance\", ROUND(consumption_kwh_per_100km::numeric, 1) AS \"kWh/100km\", ROUND(avg_speed_kmh::numeric, 0) AS \"Avg Speed\", id AS trip_id FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND end_lat IS NOT NULL AND ($trip = 0 OR id = $trip) ORDER BY start_ts",
           "format": "table",

@@ -17,11 +17,11 @@ def _service_block(name):
 
 
 def test_logger_gets_no_grafana_secrets_and_no_env_file():
-    block = "\n".join(line for line in _service_block("fordlogger").splitlines()
+    block = "\n".join(line for line in _service_block("zeekrmate").splitlines()
                       if not line.strip().startswith("#"))
     assert "env_file" not in block
     assert "GRAFANA" not in block
-    for var in ("ZEEKR_USERNAME", "ZEEKR_PASSWORD", "ZEEKR_VIN_IV", "FORDLOGGER_DB_PASSWORD"):
+    for var in ("ZEEKR_USERNAME", "ZEEKR_PASSWORD", "ZEEKR_VIN_IV", "ZEEKRMATE_DB_PASSWORD"):
         assert var in block
 
 

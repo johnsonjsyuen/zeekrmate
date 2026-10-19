@@ -34,16 +34,16 @@ import psycopg2.extras
 import pytest
 from zeekr_ev_api.exceptions import AuthException, ZeekrException
 
-from fordlogger import db
-from fordlogger import main as main_module
-from fordlogger import poller as poller_module
-from fordlogger.poller import Poller
-from fordlogger.providers.zeekr import mapper as mapper_module
-from fordlogger.providers.zeekr import provider as provider_module
-from fordlogger.providers.zeekr.provider import ZeekrProvider
-from fordlogger.providers.zeekr.session import ZeekrSession
-from fordlogger.providers.zeekr.session_store import SessionStore
-from fordlogger.providers.zeekr.settings import SECRET_ENV_VARS, ZeekrSettings
+from zeekrmate import db
+from zeekrmate import main as main_module
+from zeekrmate import poller as poller_module
+from zeekrmate.poller import Poller
+from zeekrmate.providers.zeekr import mapper as mapper_module
+from zeekrmate.providers.zeekr import provider as provider_module
+from zeekrmate.providers.zeekr.provider import ZeekrProvider
+from zeekrmate.providers.zeekr.session import ZeekrSession
+from zeekrmate.providers.zeekr.session_store import SessionStore
+from zeekrmate.providers.zeekr.settings import SECRET_ENV_VARS, ZeekrSettings
 
 UTC = timezone.utc
 VIN = "LZEKR7XAU0000E2E1"
@@ -93,7 +93,7 @@ class Clock:
 
 
 class SimDatetime:
-    """Stand-in for fordlogger.poller.datetime whose now() follows the Clock."""
+    """Stand-in for zeekrmate.poller.datetime whose now() follows the Clock."""
 
     def __init__(self, clock):
         self._clock = clock
@@ -421,7 +421,7 @@ def rows(conn, sql, *args):
 
 @pytest.fixture
 def admin(cfg, conn):
-    c = psycopg2.connect(host=cfg["db_host"], port=cfg["db_port"], dbname="fordlogger",
+    c = psycopg2.connect(host=cfg["db_host"], port=cfg["db_port"], dbname="zeekrmate",
                          user=cfg["db_user"], password=cfg["db_password"])
     c.autocommit = True
     yield c
@@ -511,7 +511,7 @@ def test_full_day(cfg, conn, tmp_path, monkeypatch, admin, caplog, signal):
     else:
         assert provider_module.map_position is mapper_module.map_position
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
-    with caplog.at_level(logging.INFO, logger="fordlogger"):
+    with caplog.at_level(logging.INFO, logger="zeekrmate"):
         sim.run()
     c = sim.pollers[-1].conn
     if c.closed:
@@ -658,14 +658,14 @@ def _run_once(monkeypatch, tmp_path, cfg, env, backend=None):
         monkeypatch.delenv(name, raising=False)
     for k, v in env.items():
         monkeypatch.setenv(k, v)
-    monkeypatch.setenv("FORDLOGGER_STATE_DIR", str(tmp_path / "state"))
+    monkeypatch.setenv("ZEEKRMATE_STATE_DIR", str(tmp_path / "state"))
     if backend is not None:
-        from fordlogger.providers.zeekr import session as session_module
+        from zeekrmate.providers.zeekr import session as session_module
         monkeypatch.setattr(session_module, "default_client_factory",
                             lambda _s, _l: SimClient(backend))
         monkeypatch.setattr(session_module, "_library_exceptions",
                             lambda: (AuthException, ZeekrException))
-    monkeypatch.setattr("sys.argv", ["fordlogger", "--once", "--config", str(path)])
+    monkeypatch.setattr("sys.argv", ["zeekrmate", "--once", "--config", str(path)])
     try:
         main_module.main()
     except SystemExit as e:
@@ -696,7 +696,7 @@ def test_once_exit_codes(cfg, conn, tmp_path, monkeypatch):
                         (at(3, 0) + timedelta(days=1), at(3, 40) + timedelta(days=1)))
     assert _run_once(monkeypatch, tmp_path, cfg, env, backend) == 1
     # missing config file -> 1
-    monkeypatch.setattr("sys.argv", ["fordlogger", "--once", "--config", str(tmp_path / "nope.json")])
+    monkeypatch.setattr("sys.argv", ["zeekrmate", "--once", "--config", str(tmp_path / "nope.json")])
     with pytest.raises(SystemExit) as e:
         main_module.main()
     assert e.value.code == 1
@@ -706,8 +706,8 @@ def test_once_db_unreachable_exits_nonzero(cfg, tmp_path, monkeypatch, caplog):
     """E2E-12: one log line and exit 1, no traceback."""
     env = {name: f"v-{name}" for name in SECRET_ENV_VARS}
     bad = dict(cfg, db_port=1)  # nothing listens there
-    monkeypatch.delenv("FORDLOGGER_DB_PORT", raising=False)
-    with caplog.at_level(logging.INFO, logger="fordlogger"):
+    monkeypatch.delenv("ZEEKRMATE_DB_PORT", raising=False)
+    with caplog.at_level(logging.INFO, logger="zeekrmate"):
         assert _run_once(monkeypatch, tmp_path, bad, env) == 1
     errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
     assert len(errors) == 1 and errors[0].exc_info is None

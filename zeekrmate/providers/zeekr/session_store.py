@@ -12,7 +12,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 STRIPPED_KEYS = ("password",)
 

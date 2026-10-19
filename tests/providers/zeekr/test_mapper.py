@@ -6,8 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from fordlogger.models import Position
-from fordlogger.providers.zeekr.mapper import map_position, ms_epoch_to_utc, to_float
+from zeekrmate.models import Position
+from zeekrmate.providers.zeekr.mapper import map_position, ms_epoch_to_utc, to_float
 
 from .conftest import CHARGING_LIMIT, CHARGING_STATUS, UPDATE_MS, VEHICLE_STATUS, VIN_A
 

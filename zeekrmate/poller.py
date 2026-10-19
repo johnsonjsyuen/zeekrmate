@@ -29,7 +29,7 @@ from . import geocoder
 from .trip_detector import finalize_trip
 from .charge_detector import finalize_charge_session
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 MAX_BACKOFF_S = 600
 MAX_FINALIZE_ATTEMPTS = 10

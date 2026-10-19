@@ -3,7 +3,7 @@
 * ``cfg`` is built from ``DEFAULT_CONFIG`` plus environment overrides; it never
   reads ``config.json``.
 * ``conn`` is opt-in: only tests that request it need PostgreSQL. It refuses to
-  run unless ``FORDLOGGER_DB_PORT`` is set explicitly, so the suite can never
+  run unless ``ZEEKRMATE_DB_PORT`` is set explicitly, so the suite can never
   fall back to a default ``localhost:5432`` server; DB tests are skipped
   instead. Tables are emptied before every test that uses it.
 * Network access is blocked for every test: geocoding is disabled and outbound
@@ -15,17 +15,17 @@ import socket
 import psycopg2
 import pytest
 
-from fordlogger.config import default_config
-from fordlogger import db
+from zeekrmate.config import default_config
+from zeekrmate import db
 
-TEST_DB_NAME = "fordlogger_test"
+TEST_DB_NAME = "zeekrmate_test"
 _LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
 
 @pytest.fixture
 def cfg():
     config = default_config()
-    config["db_host"] = os.environ.get("FORDLOGGER_DB_HOST") or "localhost"
+    config["db_host"] = os.environ.get("ZEEKRMATE_DB_HOST") or "localhost"
     config["db_name"] = TEST_DB_NAME
     config["geocoding"] = False
     return config
@@ -33,17 +33,17 @@ def cfg():
 
 @pytest.fixture(scope="session")
 def _db_session():
-    if not os.environ.get("FORDLOGGER_DB_PORT"):
-        pytest.skip("set FORDLOGGER_DB_PORT (and FORDLOGGER_DB_HOST) to run DB tests")
+    if not os.environ.get("ZEEKRMATE_DB_PORT"):
+        pytest.skip("set ZEEKRMATE_DB_PORT (and ZEEKRMATE_DB_HOST) to run DB tests")
     config = default_config()
-    config["db_host"] = os.environ.get("FORDLOGGER_DB_HOST") or "localhost"
+    config["db_host"] = os.environ.get("ZEEKRMATE_DB_HOST") or "localhost"
     config["db_name"] = TEST_DB_NAME
     assert config["db_name"] == TEST_DB_NAME
 
     admin_conn = psycopg2.connect(
         host=config["db_host"],
         port=config["db_port"],
-        dbname="fordlogger",
+        dbname="zeekrmate",
         user=config["db_user"],
         password=config["db_password"],
     )
@@ -83,9 +83,9 @@ def conn(_db_session):
 @pytest.fixture(autouse=True)
 def _no_network(monkeypatch):
     """Disable geocoding and any non-loopback network access."""
-    import fordlogger.geocoder as geocoder
+    import zeekrmate.geocoder as geocoder
 
-    monkeypatch.setenv("FORDLOGGER_GEOCODING", "false")
+    monkeypatch.setenv("ZEEKRMATE_GEOCODING", "false")
 
     def _blocked_get(*args, **kwargs):
         raise RuntimeError("network access is disabled in tests")

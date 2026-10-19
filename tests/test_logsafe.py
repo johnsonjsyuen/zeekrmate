@@ -3,8 +3,8 @@ import logging
 
 import pytest
 
-from fordlogger.logsafe import install_handler_filters, mask_vins
-from fordlogger.providers.zeekr.redact import scrub
+from zeekrmate.logsafe import install_handler_filters, mask_vins
+from zeekrmate.providers.zeekr.redact import scrub
 
 VIN = "LZEKR7XAU00000001"
 
@@ -31,7 +31,7 @@ def test_fordlogger_logger_masks_message_and_traceback(caplog):
     try:
         raise RuntimeError(f"DETAIL: Key (vin)=({VIN}) is not present")
     except RuntimeError:
-        logging.getLogger("fordlogger").error("failed for %s", VIN, exc_info=True)
+        logging.getLogger("zeekrmate").error("failed for %s", VIN, exc_info=True)
     assert VIN not in caplog.text and "***0001" in caplog.text
     assert "RuntimeError" in caplog.text  # traceback kept, only masked
 

@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing!
 
-zeekrmate is a Zeekr-only fork of [FordLogger](https://github.com/lutzerb/fordlogger) (see [NOTICE](NOTICE)). The Python package and database are still named `fordlogger`; a rename will come as a separate change.
+zeekrmate is a Zeekr-only fork of [FordLogger](https://github.com/lutzerb/fordlogger) (see [NOTICE](NOTICE)). The Python package and database are still named `zeekrmate`; a rename will come as a separate change.
 
 ## Getting started
 
@@ -20,10 +20,10 @@ pip install -r requirements.txt pytest
 
 ## Running tests
 
-Tests use a separate `fordlogger_test` database, never the real `fordlogger` database:
+Tests use a separate `zeekrmate_test` database, never the real `zeekrmate` database:
 
 ```bash
-FORDLOGGER_DB_HOST=localhost FORDLOGGER_DB_PORT=5432 python -m pytest tests/
+ZEEKRMATE_DB_HOST=localhost ZEEKRMATE_DB_PORT=5432 python -m pytest tests/
 ```
 
 The test suite must not contact the Zeekr API or any other network service. Zeekr mapping tests use sanitised captures stored in the repository.
@@ -40,7 +40,7 @@ docker compose config > /dev/null
 - Add tests for new behaviour.
 - Make sure all tests pass before submitting.
 - Keep pull requests focused: one feature or fix per pull request.
-- Keep Zeekr-specific code behind the provider boundary in `fordlogger/providers/` (see [ADR 0001](docs/adr/0001-vehicle-provider-boundary.md) and [ADR 0002](docs/adr/0002-zeekr-only.md)).
+- Keep Zeekr-specific code behind the provider boundary in `zeekrmate/providers/` (see [ADR 0001](docs/adr/0001-vehicle-provider-boundary.md) and [ADR 0002](docs/adr/0002-zeekr-only.md)).
 - When you change a dashboard query, check it runs against a database built from `sql/schema.sql`.
 
 ## Secrets and captured data
@@ -55,7 +55,7 @@ docker compose config > /dev/null
 Please include:
 
 - steps to reproduce,
-- relevant, sanitised log output (`docker compose logs fordlogger`),
+- relevant, sanitised log output (`docker compose logs zeekrmate`),
 - your car's model, variant and market, if relevant.
 
 ## Zeekr API notes

@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from fordlogger.models import Vehicle, Position, Trip, ChargeSession
+from zeekrmate.models import Vehicle, Position, Trip, ChargeSession
 
 
 def test_position_defaults():

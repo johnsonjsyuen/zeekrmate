@@ -8,7 +8,7 @@ get_trip_trackpoints. Commands (remote control, charge/travel plans) are
 unreachable: the client is wrapped in an allow-list proxy.
 
 Secrets come only from environment variables (see .env.example). The login
-session is reused from $FORDLOGGER_STATE_DIR/zeekr_session.json (same file the
+session is reused from $ZEEKRMATE_STATE_DIR/zeekr_session.json (same file the
 logger uses), so running this does not force a new login every time.
 
 Usage (host, from the repo root, with the ZEEKR_* variables exported):
@@ -16,8 +16,8 @@ Usage (host, from the repo root, with the ZEEKR_* variables exported):
     python scripts/dump_zeekr.py               # writes captures/YYYY-MM-DD-HHMM/
 
 Usage (Docker; reads .env, writes to ./data/captures on the host):
-    docker compose run --rm fordlogger python scripts/dump_zeekr.py --check
-    docker compose run --rm fordlogger python scripts/dump_zeekr.py
+    docker compose run --rm zeekrmate python scripts/dump_zeekr.py --check
+    docker compose run --rm zeekrmate python scripts/dump_zeekr.py
 
 Exit codes: 0 OK, 2 configuration missing, 3 authentication failed,
 4 API/other error, 5 no vehicles on the account.
@@ -38,15 +38,15 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from fordlogger.providers.zeekr.mapper import jsonable  # noqa: E402
-from fordlogger.providers.zeekr.redact import mask_vin  # noqa: E402
-from fordlogger.providers.zeekr.session import (  # noqa: E402
+from zeekrmate.providers.zeekr.mapper import jsonable  # noqa: E402
+from zeekrmate.providers.zeekr.redact import mask_vin  # noqa: E402
+from zeekrmate.providers.zeekr.session import (  # noqa: E402
     ZeekrAuthError,
     ZeekrProviderError,
     ZeekrSession,
 )
-from fordlogger.providers.zeekr.session_store import SessionStore  # noqa: E402
-from fordlogger.providers.zeekr.settings import (  # noqa: E402
+from zeekrmate.providers.zeekr.session_store import SessionStore  # noqa: E402
+from zeekrmate.providers.zeekr.settings import (  # noqa: E402
     ZeekrConfigError,
     load_settings,
     resolve_state_dir,
@@ -55,7 +55,7 @@ from fordlogger.providers.zeekr.settings import (  # noqa: E402
 
 EXIT_OK, EXIT_CONFIG, EXIT_AUTH, EXIT_API, EXIT_NO_VEHICLES = 0, 2, 3, 4, 5
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 
 def _write_json(path: Path, data) -> None:

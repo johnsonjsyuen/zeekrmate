@@ -7,7 +7,7 @@ import psycopg2.extras
 
 from .models import Vehicle, Position, Trip, ChargeSession
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 SCHEMA_FILE = Path(__file__).parent.parent / "sql" / "schema.sql"
 MIGRATIONS_DIR = Path(__file__).parent.parent / "sql" / "migrations"

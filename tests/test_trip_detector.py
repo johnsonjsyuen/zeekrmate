@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 
-from fordlogger.models import Vehicle, Position
-from fordlogger import db
-from fordlogger.trip_detector import finalize_trip
+from zeekrmate.models import Vehicle, Position
+from zeekrmate import db
+from zeekrmate.trip_detector import finalize_trip
 
 
 class TestTripDetector:

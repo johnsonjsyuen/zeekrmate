@@ -7,10 +7,10 @@ from datetime import datetime, timezone
 
 import pytest
 
-from fordlogger import db
-from fordlogger.models import Position, Vehicle
-from fordlogger.poller import Poller
-from fordlogger.providers.base import VehicleProvider
+from zeekrmate import db
+from zeekrmate.models import Position, Vehicle
+from zeekrmate.poller import Poller
+from zeekrmate.providers.base import VehicleProvider
 
 VIN = "AUDITVIN000000001"
 
@@ -99,7 +99,7 @@ def test_run_forever_survives_a_failed_cycle(conn, cfg, monkeypatch):
         raise _StopLoop
 
     monkeypatch.setattr(poller, "poll_once", failing_cycle)
-    monkeypatch.setattr("fordlogger.poller.time.sleep", stop_loop)
+    monkeypatch.setattr("zeekrmate.poller.time.sleep", stop_loop)
 
     with pytest.raises(_StopLoop):
         poller.run_forever()

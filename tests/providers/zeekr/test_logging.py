@@ -5,7 +5,7 @@ import logging
 import pytest
 from zeekr_ev_api.exceptions import ZeekrException
 
-from fordlogger.providers.zeekr.redact import mask_vin, quiet_library_loggers, safe_error
+from zeekrmate.providers.zeekr.redact import mask_vin, quiet_library_loggers, safe_error
 
 from .conftest import AUTH_TOKEN, SECRETS, TOKEN, VIN_A, VIN_B
 
@@ -70,5 +70,5 @@ def test_auth_failure_logs_are_clean(make_provider, caplog):
     provider, _, _ = make_provider(fail={("get_vehicle_list", None): exc})
     with pytest.raises(Exception) as info:
         provider.get_vehicles()
-    logging.getLogger("fordlogger").error("Provider error: %s", info.value, exc_info=True)
+    logging.getLogger("zeekrmate").error("Provider error: %s", info.value, exc_info=True)
     _assert_clean(caplog.text)

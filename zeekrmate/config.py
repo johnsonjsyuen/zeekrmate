@@ -3,7 +3,7 @@ import logging
 import os
 from pathlib import Path
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 INTERVALS = {
     "driving": 60,
@@ -16,9 +16,9 @@ INTERVALS = {
 DEFAULT_CONFIG = {
     "db_host": "db",
     "db_port": 5432,
-    "db_name": "fordlogger",
-    "db_user": "fordlogger",
-    "db_password": "fordlogger",
+    "db_name": "zeekrmate",
+    "db_user": "zeekrmate",
+    "db_password": "zeekrmate",
     "sleep_after_minutes": 30,
     # Poll interval in seconds per vehicle state (shortest across vehicles wins).
     "polling": dict(INTERVALS),
@@ -62,16 +62,16 @@ def _env_bool(name: str) -> bool | None:
 
 
 def apply_env_overrides(cfg: dict) -> dict:
-    """Apply FORDLOGGER_* environment overrides in place (only when set)."""
-    if os.environ.get("FORDLOGGER_DB_HOST"):
-        cfg["db_host"] = os.environ["FORDLOGGER_DB_HOST"]
-    if os.environ.get("FORDLOGGER_DB_PORT"):
-        cfg["db_port"] = int(os.environ["FORDLOGGER_DB_PORT"])
-    if os.environ.get("FORDLOGGER_DB_PASSWORD"):
-        cfg["db_password"] = os.environ["FORDLOGGER_DB_PASSWORD"]
+    """Apply ZEEKRMATE_* environment overrides in place (only when set)."""
+    if os.environ.get("ZEEKRMATE_DB_HOST"):
+        cfg["db_host"] = os.environ["ZEEKRMATE_DB_HOST"]
+    if os.environ.get("ZEEKRMATE_DB_PORT"):
+        cfg["db_port"] = int(os.environ["ZEEKRMATE_DB_PORT"])
+    if os.environ.get("ZEEKRMATE_DB_PASSWORD"):
+        cfg["db_password"] = os.environ["ZEEKRMATE_DB_PASSWORD"]
     for key, env in (
-        ("store_raw_json", "FORDLOGGER_STORE_RAW_JSON"),
-        ("geocoding", "FORDLOGGER_GEOCODING"),
+        ("store_raw_json", "ZEEKRMATE_STORE_RAW_JSON"),
+        ("geocoding", "ZEEKRMATE_GEOCODING"),
     ):
         value = _env_bool(env)
         if value is not None:

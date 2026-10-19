@@ -1,8 +1,8 @@
 {
   "db_host": "db",
   "db_port": 5432,
-  "db_name": "fordlogger",
-  "db_user": "fordlogger",
-  "db_password": "fordlogger",
+  "db_name": "zeekrmate",
+  "db_user": "zeekrmate",
+  "db_password": "zeekrmate",
   "providers": [{"type": "zeekr"}]
 }

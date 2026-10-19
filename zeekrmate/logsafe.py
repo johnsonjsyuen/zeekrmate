@@ -7,7 +7,7 @@ at least one digit, in either case, not part of a longer alphanumeric run
 characters, the same form as ``config.mask_vin``.
 
 ``VIN_FILTER`` rewrites a record's message, exception text and stack text.
-It is attached to the ``fordlogger`` logger when the package is imported
+It is attached to the ``zeekrmate`` logger when the package is imported
 (records logged there, e.g. a psycopg2 error whose DETAIL line holds a VIN,
 are masked before any handler sees them), and to the root handlers by
 ``install_handler_filters()`` so records from any other logger are masked
@@ -54,7 +54,7 @@ VIN_FILTER = VinMaskingFilter()
 
 
 def install_logger_filter() -> None:
-    logger = logging.getLogger("fordlogger")
+    logger = logging.getLogger("zeekrmate")
     if VIN_FILTER not in logger.filters:
         logger.addFilter(VIN_FILTER)
 

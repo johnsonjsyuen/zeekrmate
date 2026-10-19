@@ -2,16 +2,16 @@ import json
 
 import pytest
 
-from fordlogger.config import load_config, default_config, INTERVALS
+from zeekrmate.config import load_config, default_config, INTERVALS
 
 
 @pytest.fixture
 def _clear_env(monkeypatch):
     for name in (
-        "FORDLOGGER_DB_HOST",
-        "FORDLOGGER_DB_PORT",
-        "FORDLOGGER_STORE_RAW_JSON",
-        "FORDLOGGER_GEOCODING",
+        "ZEEKRMATE_DB_HOST",
+        "ZEEKRMATE_DB_PORT",
+        "ZEEKRMATE_STORE_RAW_JSON",
+        "ZEEKRMATE_GEOCODING",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -34,8 +34,8 @@ def test_load_config_missing_file():
 def test_env_override(tmp_path, monkeypatch):
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text(json.dumps({}))
-    monkeypatch.setenv("FORDLOGGER_DB_HOST", "myhost")
-    monkeypatch.setenv("FORDLOGGER_DB_PORT", "9999")
+    monkeypatch.setenv("ZEEKRMATE_DB_HOST", "myhost")
+    monkeypatch.setenv("ZEEKRMATE_DB_PORT", "9999")
     cfg = load_config(str(cfg_file))
     assert cfg["db_host"] == "myhost"
     assert cfg["db_port"] == 9999
@@ -52,7 +52,7 @@ def test_config_file_flags_not_overwritten_by_unset_env(tmp_path, _clear_env):
 def test_env_flags_override_config_file(tmp_path, _clear_env, monkeypatch):
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text(json.dumps({"geocoding": True}))
-    monkeypatch.setenv("FORDLOGGER_GEOCODING", "false")
+    monkeypatch.setenv("ZEEKRMATE_GEOCODING", "false")
     assert load_config(str(cfg_file))["geocoding"] is False
 
 

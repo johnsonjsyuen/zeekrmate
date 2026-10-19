@@ -1,5 +1,5 @@
 {
-  "uid": "fordlogger-overview",
+  "uid": "zeekrmate-overview",
   "title": "Overview",
   "description": "zeekrmate vehicle telemetry overview",
   "editable": true,
@@ -29,7 +29,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -84,7 +84,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", soc_pct FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -104,7 +104,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -157,7 +157,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", range_km FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -177,7 +177,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -219,7 +219,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", odometer_km FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -239,7 +239,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -308,7 +308,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\",\n  CASE\n    WHEN state = 'charging' THEN 'Plugged in (charging)'\n    WHEN lower(plug_status) IN ('connected', 'plugged_in') THEN 'Plugged in'\n    WHEN lower(plug_status) IN ('disconnected', 'unplugged') THEN 'Not plugged in'\n    WHEN plug_status IS NULL OR plug_status = '' THEN NULL\n    ELSE 'Code ' || plug_status || ' (provisional)'\n  END AS plug\nFROM positions WHERE vin = '$vin'\nORDER BY ts DESC, id DESC LIMIT 1;",
@@ -329,7 +329,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -387,7 +387,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", CASE WHEN state = 'charging' THEN 1 ELSE 0 END AS charge FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -408,7 +408,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -482,7 +482,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT time, CASE state WHEN 'driving' THEN 1 WHEN 'charging' THEN 2 WHEN 'sleeping' THEN 3 ELSE 0 END AS vehicle_state\nFROM (\n  (SELECT ts AS time, state, 1 AS src FROM states WHERE vin = '$vin' ORDER BY ts DESC, id DESC LIMIT 1)\n  UNION ALL\n  (SELECT ts AS time, state, 0 AS src FROM positions WHERE vin = '$vin' ORDER BY ts DESC, id DESC LIMIT 1)\n) latest\nORDER BY time DESC, src DESC LIMIT 1;",
@@ -503,7 +503,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -556,7 +556,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", bat_temp_c FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -577,7 +577,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -618,7 +618,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", 1 AS val FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -638,7 +638,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -708,7 +708,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "time_series",
           "rawSql": "SELECT\n  ts AS \"time\",\n  soc_pct AS \"SoC %\"\nFROM positions\nWHERE vin = '$vin' AND  $__timeFilter(ts)\nORDER BY ts;",
@@ -728,7 +728,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -797,7 +797,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "time_series",
           "rawSql": "SELECT\n  ts AS \"time\",\n  range_km AS \"Range\"\nFROM positions\nWHERE vin = '$vin' AND  $__timeFilter(ts)\nORDER BY ts;",
@@ -817,7 +817,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -901,7 +901,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "time_series",
           "rawSql": "SELECT\n  ts AS \"time\",\n  bat_temp_c AS \"Battery\",\n  outside_temp_c AS \"Outside\"\nFROM positions\nWHERE vin = '$vin' AND  $__timeFilter(ts)\nORDER BY ts;",
@@ -922,7 +922,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -1014,7 +1014,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT\n  ts AS \"time\",\n  lat AS \"latitude\",\n  lon AS \"longitude\",\n  soc_pct AS \"SoC %\",\n  state AS \"State\"\nFROM positions\nWHERE vin = '$vin' AND  lat IS NOT NULL AND lon IS NOT NULL\nORDER BY ts DESC\nLIMIT 1;",
@@ -1031,7 +1031,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,
@@ -1044,7 +1044,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT COALESCE(end_address, start_address, 'Unknown') FROM trips WHERE vin = '$vin' ORDER BY end_ts DESC LIMIT 1",
         "refresh": 2,

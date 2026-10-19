@@ -2,7 +2,7 @@ import copy
 
 import pytest
 
-from fordlogger.providers import factory
+from zeekrmate.providers import factory
 
 
 def test_no_configured_providers_returns_empty_list():

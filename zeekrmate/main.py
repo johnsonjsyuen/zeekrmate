@@ -17,7 +17,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 # Mask VIN-like tokens in every record that reaches the console handler.
 install_handler_filters()
 # zeekr_ev_api logs signed headers and full bodies at DEBUG; keep it at WARNING

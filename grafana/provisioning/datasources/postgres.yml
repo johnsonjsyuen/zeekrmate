@@ -4,20 +4,17 @@ apiVersion: 1
 # database start by sql/init-roles/20-grafana-readonly.sh). The user name and
 # password come from the Grafana container's environment, which
 # docker-compose.yml fills from .env.
-#
-# The uid stays "FordLogger" for now: every dashboard panel references it.
-# It will change together with the package/database rename.
 datasources:
   - name: zeekrmate
-    uid: FordLogger
+    uid: zeekrmate
     type: postgres
     url: db:5432
-    database: fordlogger
+    database: zeekrmate
     user: $GRAFANA_DB_USER
     secureJsonData:
       password: $GRAFANA_DB_PASSWORD
     jsonData:
-      database: fordlogger
+      database: zeekrmate
       sslmode: disable
       maxOpenConns: 5
       maxIdleConns: 2

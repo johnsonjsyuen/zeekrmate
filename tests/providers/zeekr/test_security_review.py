@@ -17,9 +17,9 @@ import stat
 import pytest
 from zeekr_ev_api.client import Vehicle as LibVehicle
 
-from fordlogger.providers.zeekr.redact import quiet_library_loggers, safe_error, scrub
-from fordlogger.providers.zeekr.session import ReadOnlyClient, ReadOnlyViolation, ZeekrSession
-from fordlogger.providers.zeekr.session_store import SessionStore
+from zeekrmate.providers.zeekr.redact import quiet_library_loggers, safe_error, scrub
+from zeekrmate.providers.zeekr.session import ReadOnlyClient, ReadOnlyViolation, ZeekrSession
+from zeekrmate.providers.zeekr.session_store import SessionStore
 from scripts.sanitise_zeekr_capture import Sanitiser
 
 from .conftest import AUTH_TOKEN, SECRETS, TOKEN, VIN_A, FakeClient, ForbiddenCall
@@ -61,7 +61,7 @@ def test_vehicle_objects_cannot_reach_write_commands(tmp_path, settings, method,
 
 
 def test_provider_and_dump_still_work_with_library_vehicle_objects(tmp_path, settings):
-    from fordlogger.providers.zeekr.provider import ZeekrProvider
+    from zeekrmate.providers.zeekr.provider import ZeekrProvider
 
     provider = ZeekrProvider(_session(tmp_path, settings))
     assert [v.vin for v in provider.get_vehicles()] == [VIN_A]
@@ -92,14 +92,14 @@ WRITE_NAMES = {"do_remote_control", "set_charge_plan", "set_travel_plan", "__sel
 
 
 def test_no_code_path_names_a_vehicle_command():
-    """Static check over fordlogger/ and scripts/: no attribute access to, and
+    """Static check over zeekrmate/ and scripts/: no attribute access to, and
     no string argument naming, a command method (getattr/session.call)."""
     import ast
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[3]
     hits = []
-    for path in list((root / "fordlogger").rglob("*.py")) + list((root / "scripts").glob("*.py")):
+    for path in list((root / "zeekrmate").rglob("*.py")) + list((root / "scripts").glob("*.py")):
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Attribute) and node.attr in WRITE_NAMES:
@@ -146,7 +146,7 @@ def test_session_file_private_even_with_permissive_umask(tmp_path, settings):
 def test_library_error_with_html_body_keeps_jwt_and_vin_out(caplog):
     caplog.set_level(logging.DEBUG)
     quiet_library_loggers()
-    logging.getLogger("fordlogger.zeekr.client").error(
+    logging.getLogger("zeekrmate.zeekr.client").error(
         "Response status: %s, text: %s", 502,
         "<html>gateway %s for %s %s</html>" % (TOKEN, VIN_A, AUTH_TOKEN))
     assert TOKEN not in caplog.text and "eyJ" not in caplog.text
@@ -157,7 +157,7 @@ def test_library_error_with_html_body_keeps_jwt_and_vin_out(caplog):
 def test_library_error_with_short_token_in_text_body(caplog):
     caplog.set_level(logging.DEBUG)
     quiet_library_loggers()
-    logging.getLogger("fordlogger.zeekr.client").error(
+    logging.getLogger("zeekrmate.zeekr.client").error(
         "Response status: %s, text: %s", 401, "access_token=Zk7Qp2Lm9Xc4Rt8V")
     assert "Zk7Qp2Lm9Xc4Rt8V" not in caplog.text
 
@@ -201,9 +201,9 @@ def test_poller_db_error_with_vin_is_masked(conn, cfg, caplog, monkeypatch):
 
     import psycopg2
 
-    from fordlogger import db
-    from fordlogger.models import Position
-    from fordlogger.poller import Poller
+    from zeekrmate import db
+    from zeekrmate.models import Position
+    from zeekrmate.poller import Poller
     from tests.fakes import FakeProvider
 
     # Obtain a real FK-violation error from PostgreSQL.

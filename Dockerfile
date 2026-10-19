@@ -16,7 +16,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY fordlogger/ fordlogger/
+COPY zeekrmate/ zeekrmate/
 COPY scripts/ scripts/
 COPY sql/ sql/
 RUN mkdir -p /app/data && chown app:app /app/data && chmod 700 /app/data
@@ -24,6 +24,6 @@ RUN mkdir -p /app/data && chown app:app /app/data && chmod 700 /app/data
 USER app
 
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
-  CMD python -c "from fordlogger.config import load_config; from fordlogger import db; db.connect(load_config('config.json')).close()" || exit 1
+  CMD python -c "from zeekrmate.config import load_config; from zeekrmate import db; db.connect(load_config('config.json')).close()" || exit 1
 
-CMD ["python", "-m", "fordlogger"]
+CMD ["python", "-m", "zeekrmate"]

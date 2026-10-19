@@ -3,8 +3,8 @@ from datetime import datetime, timedelta, timezone
 import psycopg2
 import pytest
 
-from fordlogger import db
-from fordlogger.models import Position, Vehicle
+from zeekrmate import db
+from zeekrmate.models import Position, Vehicle
 
 
 def _columns(conn, table):

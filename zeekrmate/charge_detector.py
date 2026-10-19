@@ -5,7 +5,7 @@ from . import geocoder
 from .config import mask_vin
 from .trip_detector import _first, _last, _non_negative
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 DEFAULT_DC_THRESHOLD_KW = 22.0  # the AU Zeekr 7X has a 22 kW AC on-board charger
 # Reported AC power jitters above the nominal rating (3-phase 32 A is about

@@ -10,7 +10,7 @@ import pytest
 
 def _load_base_module():
     try:
-        return importlib.import_module("fordlogger.providers.base")
+        return importlib.import_module("zeekrmate.providers.base")
     except ModuleNotFoundError:
         pytest.fail("vehicle provider base abstraction is missing")
 
@@ -58,10 +58,10 @@ def test_importing_base_does_not_load_ford_api_or_requests():
 import json
 import sys
 
-import fordlogger.providers.base
+import zeekrmate.providers.base
 
 loaded = [
-    name for name in ("fordlogger.api", "requests")
+    name for name in ("zeekrmate.api", "requests")
     if name in sys.modules
 ]
 print(json.dumps(loaded))

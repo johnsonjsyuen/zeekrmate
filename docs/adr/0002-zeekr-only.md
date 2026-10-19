@@ -17,7 +17,7 @@ The only user is an Australian Zeekr 7X owner. Nobody runs the Ford path, and th
 3. **No multi-provider persistence.** The handoff's PR 2 `provider` / `provider_vehicle_id` columns are dropped. The schema keeps provider-neutral additions only (such as observation time and snapshot keys for deduplication).
 4. **Schema baseline is edited directly.** Because no databases exist yet, `sql/schema.sql` is changed in place; a migration mechanism is only needed for changes after the first real install.
 5. **Generic state signals.** The state machine uses provider-neutral signals (`is_driving`, `is_charging`, speed, power) instead of Ford status strings. Grafana uses `positions.state` (`driving`, `charging`, `parked`, `sleeping`).
-6. **Naming.** User-facing names (README, dashboard titles, folder) become *zeekrmate*. The Python package, database name and user, Compose service and dashboard/datasource uids stay `fordlogger` until a separate rename commit.
+6. **Naming.** User-facing names (README, dashboard titles, folder) become *zeekrmate*. The Python package, database name and user, Compose service and dashboard/datasource uids stay `zeekrmate` until a separate rename commit.
 7. **Licence and attribution are unchanged in substance.** The work stays AGPL-3.0, upstream history is kept, and a [NOTICE](../../NOTICE) records the attribution to FordLogger by lutzerb and the 2026 modifications (AGPL-3.0 section 5(a)).
 8. **Read-only towards the car.** zeekrmate never sends commands to the vehicle.
 

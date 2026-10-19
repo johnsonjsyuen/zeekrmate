@@ -3,11 +3,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-import fordlogger.poller as poller_module
-from fordlogger import db
-from fordlogger.models import Position, Vehicle
-from fordlogger.poller import Poller, PollResult, coerce_float
-from fordlogger.state_machine import VehicleState
+import zeekrmate.poller as poller_module
+from zeekrmate import db
+from zeekrmate.models import Position, Vehicle
+from zeekrmate.poller import Poller, PollResult, coerce_float
+from zeekrmate.state_machine import VehicleState
 
 from tests.fakes import FakeProvider
 
@@ -112,7 +112,7 @@ class TestLogging:
     def test_logs_never_contain_the_full_vin(self, setup, caplog):
         poller, provider = setup
         t0 = _base()
-        with caplog.at_level("DEBUG", logger="fordlogger"):
+        with caplog.at_level("DEBUG", logger="zeekrmate"):
             _poll(poller, provider, _pos(t0))
             _poll(poller, provider, _pos(t0))  # dedup debug line
             for m in (2, 4, 6):

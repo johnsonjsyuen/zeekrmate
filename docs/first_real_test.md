@@ -75,8 +75,8 @@ or hand the directory to uid 1000: `sudo chown -R 1000:1000 data`.
 Docker (recommended; reads `.env` automatically):
 
 ```bash
-docker compose build fordlogger
-docker compose run --rm fordlogger python scripts/dump_zeekr.py --check
+docker compose build zeekrmate
+docker compose run --rm zeekrmate python scripts/dump_zeekr.py --check
 ```
 
 Or on the host (Python ≥ 3.10):
@@ -110,7 +110,7 @@ instead of logging in again. To force a fresh login, delete that file.
 ## 4. Raw capture
 
 ```bash
-docker compose run --rm fordlogger python scripts/dump_zeekr.py
+docker compose run --rm zeekrmate python scripts/dump_zeekr.py
 # host: python scripts/dump_zeekr.py      (writes ./captures/...)
 ```
 
@@ -140,7 +140,7 @@ For the best mapping evidence, take **three captures**:
 python scripts/sanitise_zeekr_capture.py data/captures/2026-10-19-0930
 # -> data/captures/2026-10-19-0930-sanitised/
 # or, without Python on the host:
-docker compose run --rm fordlogger python scripts/sanitise_zeekr_capture.py /app/data/captures/2026-10-19-0930
+docker compose run --rm zeekrmate python scripts/sanitise_zeekr_capture.py /app/data/captures/2026-10-19-0930
 ```
 
 The script replaces VINs, IDs, names, phone numbers, e-mails and token-like
@@ -153,7 +153,7 @@ yourself before you send them.** Never send the unsanitised folder or `data/`.
 
 ```bash
 docker compose up -d db
-docker compose run --rm fordlogger python -m fordlogger --once
+docker compose run --rm zeekrmate python -m zeekrmate --once
 ```
 
 Success in the log looks like this (timestamps shortened; with no stored
@@ -185,7 +185,7 @@ database is not reachable, the single line is `Database unavailable at
 Check what was stored:
 
 ```bash
-docker compose exec db psql -U fordlogger -c "select ts, soc_pct, range_km, odometer_km, lat is not null as has_pos, charge_power_kw, charge_status, plug_status, door_lock_status, state from positions order by id desc limit 3;"
+docker compose exec db psql -U zeekrmate -c "select ts, soc_pct, range_km, odometer_km, lat is not null as has_pos, charge_power_kw, charge_status, plug_status, door_lock_status, state from positions order by id desc limit 3;"
 ```
 
 Some columns stay empty on purpose. `energy_remaining_kwh`, `bat_capacity_kwh`,
@@ -217,7 +217,7 @@ docker compose down
    odometer, charging power, plugged in yes/no, locked yes/no.
 
 We need these to confirm or correct every mapping in
-`fordlogger/providers/zeekr/mapper.py`. All of them are marked PROVISIONAL.
+`zeekrmate/providers/zeekr/mapper.py`. All of them are marked PROVISIONAL.
 The open questions are:
 - `chargerState` codes while charging and not charging (the HA hint is `{1,2,15}`);
 - the `statusOfChargerConnection` values;

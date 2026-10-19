@@ -36,7 +36,7 @@ import re
 import sys
 from pathlib import Path
 
-# Same pattern as fordlogger.logsafe.VIN_RE (kept standalone: stdlib only).
+# Same pattern as zeekrmate.logsafe.VIN_RE (kept standalone: stdlib only).
 VIN_RE = re.compile(
     r"(?<![A-Za-z0-9])(?=[A-HJ-NPR-Z0-9]{0,16}[0-9])[A-HJ-NPR-Z0-9]{17}(?![A-Za-z0-9])",
     re.IGNORECASE,

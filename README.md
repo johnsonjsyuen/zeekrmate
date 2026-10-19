@@ -8,7 +8,7 @@ It is a modified fork of [FordLogger](https://github.com/lutzerb/fordlogger) by 
 
 > **Status: not yet tested against a real car.** The logger, schema and dashboards run, but the mapping from Zeekr API fields to the database has not been confirmed with real 7X data. Follow [the first real test](docs/first_real_test.md) before relying on the numbers. Dashboard panels that depend on unconfirmed fields say so in their description (hover the panel's ⓘ icon).
 
-> The internal Python package, database, database user and Docker service are still called `fordlogger`. They will be renamed in a later, separate change. You will see that name in commands below.
+> The internal Python package, database, database user and Docker service are still called `zeekrmate`. They will be renamed in a later, separate change. You will see that name in commands below.
 
 ## What you get
 
@@ -43,7 +43,7 @@ All secrets live in a `.env` file next to `docker-compose.yml`. It is git-ignore
 
 | Variable | Required | Used by | Purpose |
 |---|---|---|---|
-| `POSTGRES_PASSWORD` | yes | db | Password of the `fordlogger` database owner (used by the logger). |
+| `POSTGRES_PASSWORD` | yes | db | Password of the `zeekrmate` database owner (used by the logger). |
 | `GRAFANA_DB_PASSWORD` | yes | db, grafana | Password of Grafana's read-only database role. |
 | `GRAFANA_DB_USER` | no (default `grafana_ro`) | db, grafana | Name of that read-only role. |
 | `GRAFANA_ADMIN_PASSWORD` | yes | grafana | Password of the Grafana `admin` user. |
@@ -52,8 +52,8 @@ All secrets live in a `.env` file next to `docker-compose.yml`. It is git-ignore
 | `ZEEKR_PASSWORD` | yes | logger | Zeekr account password. |
 | `ZEEKR_COUNTRY_CODE` | no (default `AU`) | logger | Account country. |
 | `ZEEKR_HMAC_ACCESS_KEY`, `ZEEKR_HMAC_SECRET_KEY`, `ZEEKR_PASSWORD_PUBLIC_KEY`, `ZEEKR_PROD_SECRET`, `ZEEKR_VIN_KEY`, `ZEEKR_VIN_IV` | yes | logger | App keys required by `zeekr_ev_api` (supply your own). |
-| `FORDLOGGER_STORE_RAW_JSON` | no (default `true`) | logger | Keep raw API payloads. Leave on until the mapping is confirmed. |
-| `FORDLOGGER_GEOCODING` | no (default `true`) | logger | Look up trip and charge addresses with OpenStreetMap Nominatim. This sends coordinates to OSM; set `false` to keep them local. |
+| `ZEEKRMATE_STORE_RAW_JSON` | no (default `true`) | logger | Keep raw API payloads. Leave on until the mapping is confirmed. |
+| `ZEEKRMATE_GEOCODING` | no (default `true`) | logger | Look up trip and charge addresses with OpenStreetMap Nominatim. This sends coordinates to OSM; set `false` to keep them local. |
 | `APP_UID`, `APP_GID` | no (default `1000`) | logger (build) | User/group the logger container runs as. Must be able to write `./data`. |
 
 Generate strong, distinct passwords, for example with `openssl rand -base64 24`. Avoid `$` in values (Compose treats it as a variable), or wrap the value in single quotes in `.env`.
@@ -62,7 +62,7 @@ Generate strong, distinct passwords, for example with `openssl rand -base64 24`.
 
 Each container only receives the variables it needs: the logger gets the `ZEEKR_*` values and the database password, never the Grafana passwords.
 
-**Database password for the logger:** Docker passes `POSTGRES_PASSWORD` to the logger as `FORDLOGGER_DB_PASSWORD`, so you only set it once in `.env`. (Outside Docker, set `FORDLOGGER_DB_PASSWORD` or `db_password` in `config.json`.)
+**Database password for the logger:** Docker passes `POSTGRES_PASSWORD` to the logger as `ZEEKRMATE_DB_PASSWORD`, so you only set it once in `.env`. (Outside Docker, set `ZEEKRMATE_DB_PASSWORD` or `db_password` in `config.json`.)
 
 The database and Grafana passwords are applied **only when their volumes are first created**. To change them later, see [Changing passwords](#changing-passwords).
 
@@ -74,12 +74,12 @@ Before running the logger unattended, do a one-off check that login works and th
 
 ```bash
 docker compose up -d
-docker compose logs -f fordlogger
+docker compose logs -f zeekrmate
 ```
 
 This starts:
 
-- **fordlogger**: the polling logger.
+- **zeekrmate**: the polling logger.
 - **db**: PostgreSQL 16. It is not published on any host port.
 - **grafana**: Grafana 11 at <http://localhost:3000> (user `admin`, password `GRAFANA_ADMIN_PASSWORD`).
 
@@ -112,7 +112,7 @@ The database holds a detailed history of where the car has been, including your 
 - **Grafana listens on `127.0.0.1` only.** To use it from other devices on your network, set `GRAFANA_BIND=0.0.0.0` in `.env`. Do not expose port 3000 to the internet; use a VPN (for example Tailscale or WireGuard) instead.
 - **Grafana reads the database as a SELECT-only role** (`GRAFANA_DB_USER`). It is created by `sql/init-roles/20-grafana-readonly.sh` when the database is first initialised.
 - **No default passwords.** Every password comes from `.env`; the logger rejects the `change-me` placeholders.
-- **Least privilege per container.** The logger receives only `ZEEKR_*`, its `FORDLOGGER_*` settings and the database password (no `env_file`). Grafana receives only its own passwords. The logger container runs as a non-root user (`APP_UID`/`APP_GID`, default 1000).
+- **Least privilege per container.** The logger receives only `ZEEKR_*`, its `ZEEKRMATE_*` settings and the database password (no `env_file`). Grafana receives only its own passwords. The logger container runs as a non-root user (`APP_UID`/`APP_GID`, default 1000).
 - **The Grafana role cannot** write, create temporary objects, take advisory locks (so it cannot block the logger's start-up) or connect to other databases.
 - **The logger connects as the database owner**, which the `postgres` image makes a superuser. A separate non-superuser logger role is not set up yet, because the existing tables would have to change owner; treat the logger container as trusted with the whole database.
 - **Logs never contain a full VIN**: every log line is passed through a VIN mask (last 4 characters), including database error details.
@@ -126,7 +126,7 @@ The database holds a detailed history of where the car has been, including your 
   docker compose exec db bash /docker-entrypoint-initdb.d/20-grafana-readonly.sh
   docker compose up -d --force-recreate grafana
   ```
-- **Database owner:** run `docker compose exec db psql -U fordlogger -d fordlogger -c "\password fordlogger"`, then update `POSTGRES_PASSWORD` in `.env` and restart the logger.
+- **Database owner:** run `docker compose exec db psql -U zeekrmate -d zeekrmate -c "\password zeekrmate"`, then update `POSTGRES_PASSWORD` in `.env` and restart the logger.
 - **Grafana admin:** change it in the Grafana UI (profile, *Change password*). Changing `GRAFANA_ADMIN_PASSWORD` later has no effect on an existing Grafana volume.
 
 ## Backup and restore
@@ -156,7 +156,7 @@ The data lives in the Docker volume `pgdata`. It survives `docker compose down` 
 
 ```
 zeekrmate/
-├── fordlogger/                 # Python package (rename pending)
+├── zeekrmate/                 # Python package (rename pending)
 │   ├── main.py                 # CLI entry point (--once, --backfill-addresses, daemon)
 │   ├── config.py               # config.json + environment overrides, polling intervals
 │   ├── providers/              # VehicleProvider boundary and the Zeekr provider
@@ -173,7 +173,7 @@ zeekrmate/
 └── docs/                       # Design records and guides
 ```
 
-All Zeekr-specific code stays behind the provider boundary in `fordlogger/providers/` ([ADR 0001](docs/adr/0001-vehicle-provider-boundary.md), [ADR 0002](docs/adr/0002-zeekr-only.md)). The poller, state machine, detectors, schema and dashboards only see generic fields.
+All Zeekr-specific code stays behind the provider boundary in `zeekrmate/providers/` ([ADR 0001](docs/adr/0001-vehicle-provider-boundary.md), [ADR 0002](docs/adr/0002-zeekr-only.md)). The poller, state machine, detectors, schema and dashboards only see generic fields.
 
 ### Database tables
 
@@ -193,7 +193,7 @@ pip install -r requirements.txt pytest
 Run the tests against any PostgreSQL 16 you control (they use a separate test database):
 
 ```bash
-FORDLOGGER_DB_HOST=localhost FORDLOGGER_DB_PORT=5432 python -m pytest tests/
+ZEEKRMATE_DB_HOST=localhost ZEEKRMATE_DB_PORT=5432 python -m pytest tests/
 ```
 
 The Compose database is not published on the host. For local development either run your own PostgreSQL or temporarily enable the loopback port mapping described in [Security](#security). See [CONTRIBUTING.md](CONTRIBUTING.md).

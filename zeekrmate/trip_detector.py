@@ -4,7 +4,7 @@ from . import db
 from . import geocoder
 from .config import mask_vin
 
-log = logging.getLogger("fordlogger")
+log = logging.getLogger("zeekrmate")
 
 
 def _first(rows, key):

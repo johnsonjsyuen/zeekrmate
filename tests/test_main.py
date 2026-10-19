@@ -4,8 +4,8 @@ import signal
 
 import pytest
 
-import fordlogger.main as main_module
-from fordlogger.poller import Poller, PollResult
+import zeekrmate.main as main_module
+from zeekrmate.poller import Poller, PollResult
 
 
 
@@ -13,7 +13,7 @@ def test_empty_provider_factory_after_db_setup_preserves_exit_one(monkeypatch):
     cfg = {"client_id": "test-client"}
     conn = object()
     events = []
-    monkeypatch.setattr(sys, "argv", ["fordlogger"])
+    monkeypatch.setattr(sys, "argv", ["zeekrmate"])
     monkeypatch.setattr(main_module, "load_config", Mock(return_value=cfg))
     monkeypatch.setattr(
         main_module.db,
@@ -45,7 +45,7 @@ def test_once_passes_factory_providers_to_poller_and_polls_once(monkeypatch):
     poller = Mock()
     poller.poll_once.return_value = PollResult(providers_ok=2, positions_stored=1)
     poller_class = Mock(return_value=poller)
-    monkeypatch.setattr(sys, "argv", ["fordlogger", "--once"])
+    monkeypatch.setattr(sys, "argv", ["zeekrmate", "--once"])
     monkeypatch.setattr(main_module, "load_config", Mock(return_value=cfg))
     monkeypatch.setattr(main_module.db, "connect", Mock(return_value=conn))
     monkeypatch.setattr(main_module.db, "ensure_schema", Mock())
@@ -64,7 +64,7 @@ def test_once_passes_factory_providers_to_poller_and_polls_once(monkeypatch):
 def _run_once(monkeypatch, result):
     poller = Mock()
     poller.poll_once.return_value = result
-    monkeypatch.setattr(sys, "argv", ["fordlogger", "--once"])
+    monkeypatch.setattr(sys, "argv", ["zeekrmate", "--once"])
     monkeypatch.setattr(main_module, "load_config", Mock(return_value={}))
     monkeypatch.setattr(main_module.db, "connect", Mock(return_value=object()))
     monkeypatch.setattr(main_module.db, "ensure_schema", Mock())
@@ -104,13 +104,13 @@ def test_provider_config_error_exits_one_without_traceback(monkeypatch, caplog):
     class ZeekrConfigError(ValueError):
         pass
 
-    monkeypatch.setattr(sys, "argv", ["fordlogger"])
+    monkeypatch.setattr(sys, "argv", ["zeekrmate"])
     monkeypatch.setattr(main_module, "load_config", Mock(return_value={}))
     monkeypatch.setattr(main_module.db, "connect", Mock(return_value=object()))
     monkeypatch.setattr(main_module.db, "ensure_schema", Mock())
     monkeypatch.setattr(main_module, "create_providers",
                         Mock(side_effect=ZeekrConfigError("ZEEKR_USERNAME is not set")))
-    with caplog.at_level("INFO", logger="fordlogger"):
+    with caplog.at_level("INFO", logger="zeekrmate"):
         with pytest.raises(SystemExit) as exc_info:
             main_module.main()
     assert exc_info.value.code == 1
@@ -122,7 +122,7 @@ def test_provider_config_error_exits_one_without_traceback(monkeypatch, caplog):
 @pytest.mark.parametrize("password", ["change-me-too", " Change-Me-as-well", "change-me-x"])
 def test_placeholder_db_password_is_refused(monkeypatch, caplog, password):
     connect = Mock()
-    monkeypatch.setattr(sys, "argv", ["fordlogger", "--once"])
+    monkeypatch.setattr(sys, "argv", ["zeekrmate", "--once"])
     monkeypatch.setattr(main_module, "load_config", Mock(return_value={"db_password": password}))
     monkeypatch.setattr(main_module.db, "connect", connect)
     with pytest.raises(SystemExit) as exc_info:
@@ -134,7 +134,7 @@ def test_placeholder_db_password_is_refused(monkeypatch, caplog, password):
 
 def test_db_unavailable_is_one_line(monkeypatch, caplog):
     import psycopg2
-    monkeypatch.setattr(sys, "argv", ["fordlogger"])
+    monkeypatch.setattr(sys, "argv", ["zeekrmate"])
     monkeypatch.setattr(main_module, "load_config",
                         Mock(return_value={"db_host": "db", "db_port": 5432, "db_password": "x"}))
     monkeypatch.setattr(main_module.db, "connect",

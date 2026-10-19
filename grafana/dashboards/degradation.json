@@ -1,5 +1,5 @@
 {
-  "uid": "fordlogger-degradation",
+  "uid": "zeekrmate-degradation",
   "title": "Battery Degradation",
   "description": "zeekrmate battery capacity and range trend (estimates, not a measured state of health). Set the Rated capacity and Rated range variables from your Zeekr 7X variant's published spec to see percentages.",
   "tags": [
@@ -45,7 +45,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -131,7 +131,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts AS time, bat_capacity_kwh AS \"Battery Capacity kWh\", ROUND((bat_capacity_kwh / CASE WHEN '${rated_capacity_kwh}' ~ '^[0-9]+(\\.[0-9]+)?$' THEN NULLIF('${rated_capacity_kwh}', '')::numeric END * 100)::numeric, 1) AS \"% of rated\" FROM positions WHERE vin = '$vin' AND  bat_capacity_kwh IS NOT NULL ORDER BY ts DESC LIMIT 1",
           "format": "table",
@@ -152,7 +152,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -193,7 +193,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts AS time, energy_remaining_kwh AS \"Energy Remaining kWh\" FROM positions WHERE vin = '$vin' AND  energy_remaining_kwh IS NOT NULL ORDER BY ts DESC LIMIT 1",
           "format": "table",
@@ -214,7 +214,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -300,7 +300,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts AS time, CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END AS \"Max Range Estimate km\", ROUND((CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END / CASE WHEN '${rated_range_km}' ~ '^[0-9]+(\\.[0-9]+)?$' THEN NULLIF('${rated_range_km}', '')::numeric END * 100)::numeric, 0) AS \"% of rated\" FROM positions WHERE vin = '$vin' AND  soc_pct > 10 AND range_km IS NOT NULL ORDER BY ts DESC LIMIT 1",
           "format": "table",
@@ -322,7 +322,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -398,7 +398,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT date_trunc('day', ts) as time, max(bat_capacity_kwh) as \"Battery Capacity kWh\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND bat_capacity_kwh IS NOT NULL GROUP BY 1 ORDER BY 1",
           "format": "table",
@@ -419,7 +419,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -533,7 +533,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts as time, range_km as \"Range km\", soc_pct as \"SoC %\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND soc_pct IS NOT NULL AND range_km IS NOT NULL ORDER BY ts",
           "format": "table",
@@ -554,7 +554,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -630,7 +630,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT date_trunc('day', ts) as time, max(CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END) as \"Max Range Estimate km\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND soc_pct > 10 AND range_km IS NOT NULL GROUP BY 1 ORDER BY 1",
           "format": "table",
@@ -647,7 +647,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,

@@ -2,8 +2,8 @@ from datetime import datetime, timezone, timedelta
 
 import pytest
 
-from fordlogger.state_machine import StateMachine, VehicleState, classify
-from fordlogger.models import Position
+from zeekrmate.state_machine import StateMachine, VehicleState, classify
+from zeekrmate.models import Position
 
 T0 = datetime(2026, 10, 1, 8, 0, tzinfo=timezone.utc)
 

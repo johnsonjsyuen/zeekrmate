@@ -1,9 +1,9 @@
 """Run sql/init-roles/20-grafana-readonly.sh against a scratch database and
 check the Grafana role really is SELECT-only (independent security review).
 
-Needs a PostgreSQL superuser connection (the test setup's ``fordlogger``
+Needs a PostgreSQL superuser connection (the test setup's ``zeekrmate``
 role), ``bash`` and ``psql``; skipped otherwise. Creates and drops its own
-database and role, never touching ``fordlogger_test``.
+database and role, never touching ``zeekrmate_test``.
 """
 
 import os
@@ -14,7 +14,7 @@ from pathlib import Path
 import psycopg2
 import pytest
 
-from fordlogger.config import default_config
+from zeekrmate.config import default_config
 
 ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = ROOT / "sql" / "init-roles" / "20-grafana-readonly.sh"
@@ -23,7 +23,7 @@ ROLE = "grafana_ro_sec_test"
 PASSWORD = "p'a\"ss w0rd;--"
 
 
-def _admin(cfg, dbname="fordlogger"):
+def _admin(cfg, dbname="zeekrmate"):
     c = psycopg2.connect(host=cfg["db_host"], port=cfg["db_port"], dbname=dbname,
                          user=cfg["db_user"], password=cfg["db_password"])
     c.autocommit = True
@@ -32,12 +32,12 @@ def _admin(cfg, dbname="fordlogger"):
 
 @pytest.fixture(scope="module")
 def ro_conn():
-    if not os.environ.get("FORDLOGGER_DB_PORT"):
-        pytest.skip("set FORDLOGGER_DB_PORT to run DB tests")
+    if not os.environ.get("ZEEKRMATE_DB_PORT"):
+        pytest.skip("set ZEEKRMATE_DB_PORT to run DB tests")
     if not shutil.which("psql") or not shutil.which("bash"):
         pytest.skip("psql/bash not available")
     cfg = default_config()
-    cfg["db_host"] = os.environ.get("FORDLOGGER_DB_HOST") or "localhost"
+    cfg["db_host"] = os.environ.get("ZEEKRMATE_DB_HOST") or "localhost"
     admin = _admin(cfg)
     with admin.cursor() as cur:
         cur.execute(f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)")
@@ -140,7 +140,7 @@ def test_role_cannot_connect_to_postgres_db(ro_conn):
 
 def test_logger_schema_lock_still_works(ro_conn, cfg):
     """The superuser owner (logger) is unaffected by the REVOKEs."""
-    from fordlogger import db
+    from zeekrmate import db
     owner = _admin(dict(cfg, db_host=ro_conn.info.host), DB)
     try:
         db.ensure_schema(owner)

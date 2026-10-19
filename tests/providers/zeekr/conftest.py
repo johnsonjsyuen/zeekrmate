@@ -12,10 +12,10 @@ import logging
 import pytest
 from zeekr_ev_api.exceptions import AuthException, ZeekrException
 
-from fordlogger.providers.zeekr.session import ZeekrSession
-from fordlogger.providers.zeekr.session_store import SessionStore
-from fordlogger.providers.zeekr.settings import ZeekrSettings
-from fordlogger.providers.zeekr.provider import ZeekrProvider
+from zeekrmate.providers.zeekr.session import ZeekrSession
+from zeekrmate.providers.zeekr.session_store import SessionStore
+from zeekrmate.providers.zeekr.settings import ZeekrSettings
+from zeekrmate.providers.zeekr.provider import ZeekrProvider
 
 VIN_A = "LZEKR7XAU00000001"
 VIN_B = "LZEKR7XAU00000002"

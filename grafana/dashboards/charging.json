@@ -1,5 +1,5 @@
 {
-  "uid": "fordlogger-charging",
+  "uid": "zeekrmate-charging",
   "title": "Charging",
   "description": "zeekrmate charging sessions and charge curves",
   "editable": true,
@@ -31,7 +31,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -70,7 +70,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -92,7 +92,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -132,7 +132,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -155,7 +155,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -195,7 +195,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -217,7 +217,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -265,7 +265,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -288,7 +288,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -550,7 +550,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -574,7 +574,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -648,7 +648,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "time_series",
@@ -671,7 +671,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -755,7 +755,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "time_series",
@@ -774,7 +774,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,
