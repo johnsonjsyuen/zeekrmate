@@ -193,6 +193,7 @@ The Compose database is not published on the host. For local development either 
 
 ## Known limitations
 
+- **Driving is inferred** from odometer (+0.1 km) or position (> 200 m) changes between consecutive fresh snapshots, because no Zeekr driving or speed field is confirmed yet. Trips therefore depend on how often the API refreshes its snapshot while driving; a stop of about two polls splits a trip. A gap of more than `drive_gap_minutes` (default 30) without fresh data ends a trip at the last reading.
 - **Short trips can be missed** if they start and end between two polls.
 - **Max speed is a sampled value**, so it is usually lower than the true maximum.
 - **AC/DC classification** of charge sessions is a power-threshold guess and can mislabel fast AC charging (the 7X supports 22 kW AC).

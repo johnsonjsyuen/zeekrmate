@@ -38,6 +38,7 @@ from fordlogger import db
 from fordlogger import main as main_module
 from fordlogger import poller as poller_module
 from fordlogger.poller import Poller
+from fordlogger.providers.zeekr import mapper as mapper_module
 from fordlogger.providers.zeekr import provider as provider_module
 from fordlogger.providers.zeekr.provider import ZeekrProvider
 from fordlogger.providers.zeekr.session import ZeekrSession
@@ -299,10 +300,11 @@ class SimClient:
 
 
 def driving_signal_shim(monkeypatch):
-    """Test-only stand-in for the not-yet-mapped driving indicator.
+    """Test-only explicit driving indicator.
 
-    The real mapper leaves is_driving None (no capture yet). To exercise trip
-    finalisation end to end we derive it from engineStatus here only.
+    The real mapper leaves is_driving None (no capture yet) and trips come
+    from the core's motion inference. This shim derives is_driving from
+    engineStatus (here only) to exercise the explicit-flag path as well.
     """
     real = provider_module.map_position
 
@@ -493,9 +495,20 @@ def check_trips(conn):
     return trips
 
 
-def test_day_with_driving_signal(cfg, conn, tmp_path, monkeypatch, admin, caplog):
-    """Full day, with a test-only driving signal so trip logic is exercised."""
-    driving_signal_shim(monkeypatch)
+@pytest.mark.parametrize("signal", ["inferred", "explicit"])
+def test_full_day(cfg, conn, tmp_path, monkeypatch, admin, caplog, signal):
+    """Full day with every stress event.
+
+    ``inferred``: the unmodified Zeekr mapper (is_driving and speed_kmh are
+    always None); trips come only from the core's generic motion inference
+    (odometer/position change between fresh readings). ``explicit``: a
+    test-only engineStatus -> is_driving shim exercises the explicit path.
+    Both must produce the same trips, sessions and states.
+    """
+    if signal == "explicit":
+        driving_signal_shim(monkeypatch)
+    else:
+        assert provider_module.map_position is mapper_module.map_position
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
     with caplog.at_level(logging.INFO, logger="fordlogger"):
         sim.run()
@@ -511,7 +524,7 @@ def test_day_with_driving_signal(cfg, conn, tmp_path, monkeypatch, admin, caplog
     assert "Poll cycle failed:" not in caplog.text  # no unexpected exception escaped poll_once
     assert "Giving up" not in caplog.text
 
-    dump(c, "with driving signal")
+    dump(c, f"full day ({signal} driving signal)")
     print("cycles", sim.cycles, "failed", sim.failed_cycles, "logins", sim.backend.logins,
           "auth_errors", sim.backend.auth_errors, "timeouts", sim.backend.timeouts,
           "pollers", len(sim.pollers))
@@ -529,32 +542,6 @@ def test_day_with_driving_signal(cfg, conn, tmp_path, monkeypatch, admin, caplog
     assert g and g[0]["soc_pct"] is None and g[0]["odometer_km"] is None and g[0]["lat"] is None
 
 
-def test_day_real_mapper_charges(cfg, conn, tmp_path, monkeypatch, admin):
-    """Same day through the unmodified mapper: charging must still be right."""
-    sim = Simulation(cfg, tmp_path, monkeypatch, admin)
-    sim.run()
-    c = db.connect(sim.cfg)
-    dump(c, "real mapper")
-    check_positions_sane(c)
-    check_charges(c)
-    check_states_coherent(c)
-    c.close()
-
-
-@pytest.mark.xfail(strict=True, reason="BUG E2E-1: the Zeekr mapper has no driving signal "
-                   "(is_driving/speed_kmh always None), so no trip is ever recorded")
-def test_day_real_mapper_records_trips(cfg, conn, tmp_path, monkeypatch, admin):
-    sim = Simulation(cfg, tmp_path, monkeypatch, admin)
-    sim.run()
-    c = db.connect(sim.cfg)
-    try:
-        check_trips(c)
-    finally:
-        c.close()
-
-
-@pytest.mark.xfail(strict=True, reason="BUG E2E-2: a sleeping car never leaves SLEEPING without "
-                   "a driving/charging signal; a morning drive is logged as 'sleeping'")
 def test_real_mapper_wakes_for_morning_drive(cfg, conn, tmp_path, monkeypatch, admin):
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
     sim.run(until=at(8, 6))
@@ -584,11 +571,12 @@ def test_22kw_ac_with_realistic_jitter_is_ac(cfg, conn, tmp_path, monkeypatch, a
         c.close()
 
 
-@pytest.mark.xfail(strict=True, reason="BUG E2E-4: after a long outage mid-trip the restored "
-                   "DRIVING state is ended at the first post-restart reading, so the trip "
-                   "absorbs the whole outage (07:31 -> ~10:10 instead of 08:05)")
-def test_long_outage_mid_trip_does_not_stretch_trip(cfg, conn, tmp_path, monkeypatch, admin):
-    driving_signal_shim(monkeypatch)
+@pytest.mark.parametrize("signal", ["inferred", "explicit"])
+def test_long_outage_mid_trip_does_not_stretch_trip(cfg, conn, tmp_path, monkeypatch, admin, signal):
+    """E2E-4: a gap longer than drive_gap_minutes ends the drive at the last
+    reading before the gap instead of stretching it over the outage."""
+    if signal == "explicit":
+        driving_signal_shim(monkeypatch)
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
     sim.restarts = [(at(7, 55), timedelta(hours=3, minutes=30))]  # crash, back at 11:25
     sim.db_faults.update(pos=True, trip=True)  # no DB faults in this scenario
@@ -607,8 +595,10 @@ def test_long_outage_mid_trip_does_not_stretch_trip(cfg, conn, tmp_path, monkeyp
 @pytest.mark.xfail(strict=True, reason="BUG E2E-5: a failed insert_state is only logged, never "
                    "retried; a restart before the next state change restores DRIVING and "
                    "finalises the same drive a second time (duplicate, overlapping trip)")
-def test_lost_state_row_does_not_duplicate_trip(cfg, conn, tmp_path, monkeypatch, admin):
-    driving_signal_shim(monkeypatch)
+@pytest.mark.parametrize("signal", ["inferred", "explicit"])
+def test_lost_state_row_does_not_duplicate_trip(cfg, conn, tmp_path, monkeypatch, admin, signal):
+    if signal == "explicit":
+        driving_signal_shim(monkeypatch)
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
     sim.db_faults.update(pos=True, trip=True)
     sim.restarts = [(at(8, 8), timedelta(minutes=1))]  # after drive end, before 08:10 charge
@@ -633,11 +623,12 @@ def test_lost_state_row_does_not_duplicate_trip(cfg, conn, tmp_path, monkeypatch
         c.close()
 
 
-@pytest.mark.xfail(strict=True, reason="BUG E2E-7: if the API refreshes its snapshot less often "
-                   "than stale_after_minutes (15) during a charge, the session is split into "
-                   "several zero-length sessions; all but the last are dropped as too short")
-def test_coarse_snapshots_do_not_split_charge(cfg, conn, tmp_path, monkeypatch, admin):
-    driving_signal_shim(monkeypatch)
+@pytest.mark.parametrize("signal", ["inferred", "explicit"])
+def test_coarse_snapshots_do_not_split_charge(cfg, conn, tmp_path, monkeypatch, admin, signal):
+    """E2E-7: while the last reading still showed charging, a slow snapshot
+    refresh (up to charge_gap_minutes) does not end the session."""
+    if signal == "explicit":
+        driving_signal_shim(monkeypatch)
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
     sim.db_faults.update(pos=True, trip=True)
     sim.restarts = []

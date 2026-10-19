@@ -135,6 +135,8 @@ class Poller:
             else:
                 log.warning("Ignoring unknown polling state %r in config", state)
         self.stale_after_s = float(cfg.get("stale_after_minutes", 15)) * 60
+        self.drive_gap_s = float(cfg.get("drive_gap_minutes", 30)) * 60
+        self.charge_gap_s = float(cfg.get("charge_gap_minutes", 180)) * 60
         self.exit_debounce = int(cfg.get("state_exit_debounce", 2))
         self.trip_prestart_window_s = float(cfg.get("trip_prestart_window_s", 900))
         self.dc_threshold_kw = float(cfg.get("dc_threshold_kw", 22.0))
@@ -153,6 +155,8 @@ class Poller:
             vin,
             sleep_after_minutes=self.cfg.get("sleep_after_minutes", 30),
             exit_debounce=self.exit_debounce,
+            drive_gap_s=self.drive_gap_s,
+            charge_gap_s=self.charge_gap_s,
         )
         saved_state = db.get_latest_state(self.conn, vin)
         latest = db.get_latest_position(self.conn, vin)
@@ -174,7 +178,13 @@ class Poller:
         if latest:
             self._last_seen[vin] = (latest["ts"], latest.get("snapshot_key"))
         if saved_state or latest:
-            sm.restore(state, since_ts=since, last_ts=last_ts, last_observed=last_observed)
+            sm.restore(
+                state, since_ts=since, last_ts=last_ts, last_observed=last_observed,
+                last_odometer=latest.get("odometer_km") if latest else None,
+                last_lat=latest.get("lat") if latest else None,
+                last_lon=latest.get("lon") if latest else None,
+                last_charging=(latest.get("state") == VehicleState.CHARGING.value) if latest else None,
+            )
             log.info("Restored state for %s from DB: %s (since %s)", mask_vin(vin), state.value, since)
         self.machines[vin] = sm
         return sm
@@ -349,6 +359,13 @@ class Poller:
 
         if not self.cfg.get("store_raw_json", True):
             pos.raw_json = None
+
+        # A long gap since the last fresh reading (restart, DB/API outage)
+        # ends a drive at the last reading before this one is evaluated.
+        gap_old = sm.state
+        gap_state, gap_changed = sm.close_gap(pos)
+        if gap_changed:
+            self._handle_transition(vin, gap_old, gap_state, sm.last_change_ts)
 
         saved = dict(sm.__dict__)
         old_state = sm.state

@@ -25,6 +25,13 @@ DEFAULT_CONFIG = {
     # End DRIVING/CHARGING when the provider has served no fresh snapshot for
     # this long (frozen data while the car sleeps).
     "stale_after_minutes": 15,
+    # A gap longer than this between fresh readings (restart, DB or API
+    # outage) ends a drive at the last reading before the gap. Also the
+    # longest interval over which odometer/position change counts as driving.
+    "drive_gap_minutes": 30,
+    # CHARGING survives gaps up to this long while readings still show
+    # charging (some APIs refresh slowly while charging).
+    "charge_gap_minutes": 180,
     # Consecutive non-active readings required to leave DRIVING/CHARGING.
     "state_exit_debounce": 2,
     # Anchor a trip at the last reading before driving if it is this recent.

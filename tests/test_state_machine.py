@@ -228,3 +228,114 @@ class TestTick:
     def test_tick_without_any_reading_is_noop(self):
         sm = _sm()
         assert sm.tick(T0, stale_after_s=1) == (VehicleState.PARKED, False)
+
+
+class TestMotionInference:
+    """E2E-1: without is_driving/speed, odometer/position change means driving."""
+
+    def _p(self, minutes, odo=None, lat=None, lon=None, **kw):
+        return _pos(speed=None, ts=T0 + timedelta(minutes=minutes), odometer_km=odo,
+                    lat=lat, lon=lon, **kw)
+
+    def test_odometer_increase_starts_and_ends_drive(self):
+        sm = StateMachine("TEST", exit_debounce=2)
+        assert sm.transition(self._p(0, odo=100.0))[0] == VehicleState.PARKED
+        assert sm.transition(self._p(2, odo=101.5)) == (VehicleState.DRIVING, True)
+        assert sm.transition(self._p(4, odo=103.0))[0] == VehicleState.DRIVING
+        assert sm.transition(self._p(6, odo=103.0)) == (VehicleState.DRIVING, False)
+        assert sm.transition(self._p(8, odo=103.0)) == (VehicleState.PARKED, True)
+        assert sm.last_change_ts == T0 + timedelta(minutes=6)
+
+    def test_position_change_starts_drive(self):
+        sm = _sm()
+        sm.transition(self._p(0, lat=-33.80, lon=151.00))
+        assert sm.transition(self._p(2, lat=-33.81, lon=151.00))[0] == VehicleState.DRIVING
+
+    def test_small_changes_are_noise(self):
+        sm = _sm()
+        sm.transition(self._p(0, odo=100.0, lat=-33.8000, lon=151.0000))
+        state, _ = sm.transition(self._p(2, odo=100.05, lat=-33.8010, lon=151.0005))
+        assert state == VehicleState.PARKED
+
+    def test_known_speed_wins_over_motion(self):
+        sm = _sm()
+        sm.transition(_pos(speed=0.0, ts=T0, odometer_km=100.0))
+        state, _ = sm.transition(_pos(speed=0.0, ts=T0 + timedelta(minutes=2), odometer_km=101.0))
+        assert state == VehicleState.PARKED
+
+    def test_explicit_flag_wins_over_motion(self):
+        sm = _sm()
+        sm.transition(self._p(0, odo=100.0))
+        state, _ = sm.transition(self._p(2, odo=101.0, is_driving=False))
+        assert state == VehicleState.PARKED
+
+    def test_no_inference_across_a_long_gap(self):
+        sm = _sm(drive_gap_s=1800, sleep_after_minutes=600)
+        sm.transition(self._p(0, odo=100.0))
+        assert sm.transition(self._p(31, odo=120.0))[0] == VehicleState.PARKED
+        assert sm.transition(self._p(33, odo=121.0))[0] == VehicleState.DRIVING
+
+    def test_missing_values_are_unknown_and_keep_driving(self):
+        sm = _sm()
+        sm.transition(self._p(0, odo=100.0))
+        sm.transition(self._p(2, odo=101.0))
+        assert sm.transition(self._p(4))[0] == VehicleState.DRIVING
+
+    def test_motion_wakes_a_sleeping_car(self):
+        """E2E-2: SLEEPING is left on any driving signal, inferred included."""
+        sm = _sm(sleep_after_minutes=30)
+        sm.transition(self._p(0, odo=100.0))
+        assert sm.transition(self._p(31, odo=100.0))[0] == VehicleState.SLEEPING
+        assert sm.transition(self._p(35, odo=101.0)) == (VehicleState.DRIVING, True)
+
+    def test_restore_seeds_motion_reference(self):
+        sm = _sm()
+        sm.restore(VehicleState.PARKED, last_ts=T0, last_observed=T0, last_odometer=100.0)
+        assert sm.transition(self._p(2, odo=101.0))[0] == VehicleState.DRIVING
+
+
+class TestGaps:
+    """E2E-4/E2E-7: gaps between fresh readings."""
+
+    def test_long_gap_ends_drive_at_last_reading(self):
+        sm = _sm(drive_gap_s=1800, sleep_after_minutes=600)
+        sm.transition(_pos(speed=60.0, ts=T0))
+        later = _pos(speed=0.0, ts=T0 + timedelta(hours=3))
+        assert sm.close_gap(later) == (VehicleState.PARKED, True)
+        assert sm.last_change_ts == T0
+        assert sm.transition(later) == (VehicleState.PARKED, False)
+
+    def test_observed_gap_counts_even_if_provider_clock_frozen(self):
+        sm = _sm(drive_gap_s=1800)
+        sm.transition(_pos(speed=60.0, ts=T0, observed_at=T0))
+        later = _pos(speed=60.0, ts=T0 + timedelta(minutes=1), observed_at=T0 + timedelta(hours=2))
+        assert sm.close_gap(later) == (VehicleState.PARKED, True)
+
+    def test_short_gap_keeps_drive(self):
+        sm = _sm(drive_gap_s=1800)
+        sm.transition(_pos(speed=60.0, ts=T0))
+        assert sm.close_gap(_pos(speed=60.0, ts=T0 + timedelta(minutes=20))) == (VehicleState.DRIVING, False)
+
+    def test_charge_survives_gap_while_still_charging(self):
+        sm = _sm(drive_gap_s=1800, charge_gap_s=3 * 3600)
+        sm.transition(_pos(charge_power=11.0, ts=T0))
+        assert sm.close_gap(_pos(charge_power=11.0, ts=T0 + timedelta(hours=1))) == \
+            (VehicleState.CHARGING, False)
+
+    def test_charge_ends_after_gap_when_no_longer_charging(self):
+        sm = _sm(drive_gap_s=1800)
+        sm.transition(_pos(charge_power=11.0, ts=T0))
+        assert sm.close_gap(_pos(charge_power=0.0, ts=T0 + timedelta(hours=1))) == \
+            (VehicleState.PARKED, True)
+        assert sm.last_change_ts == T0
+
+    def test_charge_ends_after_gap_beyond_charge_gap(self):
+        sm = _sm(drive_gap_s=1800, charge_gap_s=3 * 3600)
+        sm.transition(_pos(charge_power=11.0, ts=T0))
+        assert sm.close_gap(_pos(charge_power=11.0, ts=T0 + timedelta(hours=4)))[1] is True
+
+    def test_tick_keeps_charging_with_slow_refresh(self):
+        sm = _sm(charge_gap_s=3 * 3600)
+        sm.transition(_pos(charge_power=11.0, ts=T0, observed_at=T0))
+        assert sm.tick(T0 + timedelta(minutes=40), stale_after_s=900) == (VehicleState.CHARGING, False)
+        assert sm.tick(T0 + timedelta(hours=3, minutes=1), stale_after_s=900)[1] is True
