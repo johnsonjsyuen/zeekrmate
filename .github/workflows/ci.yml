@@ -44,17 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Matches the python:3.12-slim runtime image.
+      # Matches the python:3.15-slim runtime image.
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.15"
           cache: pip
           cache-dependency-path: requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest
+          pip install -r requirements.txt pytest==9.1.1
 
       # psql is needed by tests/test_security_grafana_role.py, which runs the
       # Grafana read-only role init script.
