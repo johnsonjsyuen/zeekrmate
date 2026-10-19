@@ -6,11 +6,6 @@ import pytest
 import fordlogger.main as main_module
 
 
-@pytest.fixture(autouse=True)
-def _clean_tables():
-    """Main wiring tests replace database calls at the module boundary."""
-    yield
-
 
 def test_empty_provider_factory_after_db_setup_preserves_exit_one(monkeypatch):
     cfg = {"client_id": "test-client"}

@@ -12,6 +12,8 @@ DEFAULT_CONFIG = {
     "db_user": "fordlogger",
     "db_password": "fordlogger",
     "sleep_after_minutes": 30,
+    "store_raw_json": True,
+    "geocoding": True,
     "providers": [],
 }
 
@@ -22,17 +24,40 @@ INTERVALS = {
     "sleeping": 300,
 }
 
+_TRUE = ("true", "1", "yes")
+
+
+def _env_bool(name: str) -> bool | None:
+    value = os.environ.get(name)
+    if value is None or value == "":
+        return None
+    return value.strip().lower() in _TRUE
+
+
+def apply_env_overrides(cfg: dict) -> dict:
+    """Apply FORDLOGGER_* environment overrides in place (only when set)."""
+    if os.environ.get("FORDLOGGER_DB_HOST"):
+        cfg["db_host"] = os.environ["FORDLOGGER_DB_HOST"]
+    if os.environ.get("FORDLOGGER_DB_PORT"):
+        cfg["db_port"] = int(os.environ["FORDLOGGER_DB_PORT"])
+    for key, env in (
+        ("store_raw_json", "FORDLOGGER_STORE_RAW_JSON"),
+        ("geocoding", "FORDLOGGER_GEOCODING"),
+    ):
+        value = _env_bool(env)
+        if value is not None:
+            cfg[key] = value
+    return cfg
+
+
+def default_config() -> dict:
+    """Defaults plus environment overrides, without reading any file."""
+    return apply_env_overrides(json.loads(json.dumps(DEFAULT_CONFIG)))
+
 
 def load_config(path: str = "config.json") -> dict:
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"Config file not found: {p}")
-    cfg = {**DEFAULT_CONFIG, **json.loads(p.read_text())}
-    # Allow env var overrides for Docker vs local dev
-    if os.environ.get("FORDLOGGER_DB_HOST"):
-        cfg["db_host"] = os.environ["FORDLOGGER_DB_HOST"]
-    if os.environ.get("FORDLOGGER_DB_PORT"):
-        cfg["db_port"] = int(os.environ["FORDLOGGER_DB_PORT"])
-    cfg["store_raw_json"] = os.environ.get("FORDLOGGER_STORE_RAW_JSON", "true").lower() in ("true", "1", "yes")
-    cfg["geocoding"] = os.environ.get("FORDLOGGER_GEOCODING", "true").lower() in ("true", "1", "yes")
-    return cfg
+    cfg = {**json.loads(json.dumps(DEFAULT_CONFIG)), **json.loads(p.read_text())}
+    return apply_env_overrides(cfg)
