@@ -819,3 +819,54 @@ def test_trips_summary_panels_show_no_data_without_trips(cfg, conn):
         with conn.cursor() as cur:
             cur.execute(substitute(_panel("trips", title), frm, to))
             assert cur.fetchone()[0] is None, title
+
+
+def _once_log_lines(monkeypatch, tmp_path, cfg, caplog, env, backend):
+    caplog.clear()
+    code = _run_once(monkeypatch, tmp_path, cfg, env, backend)
+    return code, [r.getMessage() for r in caplog.records]
+
+
+def test_first_real_test_doc_matches_once_output(cfg, conn, tmp_path, monkeypatch, caplog):
+    """E2E-13: docs/first_real_test.md section 6 shows the lines --once really prints."""
+    env = {name: f"v-{name}" for name in SECRET_ENV_VARS}
+    clock = Clock(at(10, 0))
+    backend = Backend(clock, SimCar(clock))
+    monkeypatch.setattr(poller_module, "datetime", SimDatetime(clock))
+    caplog.set_level(logging.INFO)
+    clock.now = at(10, 20)  # parked after the morning charge (before the garbage poll)
+    code, first = _once_log_lines(monkeypatch, tmp_path, cfg, caplog, env, backend)
+    code2, second = _once_log_lines(monkeypatch, tmp_path, cfg, caplog, env, backend)
+    assert (code, code2) == (0, 1)
+
+    doc = (REPO / "docs" / "first_real_test.md").read_text()
+    section = doc[doc.index("## 6."):doc.index("## 7.")]
+    blocks, current, lang = [], None, None
+    for line in section.splitlines():
+        if line.startswith("```"):
+            if current is None:
+                current, lang = [], line[3:].strip()
+            else:
+                if not lang:  # untagged blocks are log output
+                    blocks.append(current)
+                current = None
+        elif current is not None and line.strip():
+            current.append(line)
+    success, duplicate = blocks[0], blocks[1]
+
+    def pattern(doc_line):
+        msg = re.sub(r"^\.\.\. \[\w+\] ", "", doc_line).replace("***1234", "VINMASK")
+        rx = re.sub(r"\d+(?:\\\.\d+)?", r"\\d+(?:\\.\\d+)?", re.escape(msg))
+        return re.compile("^" + rx.replace("VINMASK", r"\*\*\*\w{4}") + "$")
+
+    def in_order(doc_lines, actual):
+        it = iter(actual)
+        for d in doc_lines:
+            p = pattern(d)
+            assert any(p.match(a) for a in it), (d, actual)
+
+    first_stored = [ln.replace("logged in with a fresh session", "reusing stored session")
+                    for ln in first]
+    in_order(success, first_stored)
+    in_order(success[:5], second)
+    in_order(duplicate, second)

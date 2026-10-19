@@ -38,7 +38,8 @@ Deliberately NOT mapped (left None; the full payload is kept in raw_json):
   is_driving      no clear definition. sensor.py:731 maps engineStatus
                   "engine-running" to a display label "Driving", but "ready"
                   is separate and an EV can be "on" while parked; needs a
-                  capture taken while driving.
+                  capture taken while driving. Meanwhile the core state
+                  machine infers driving from odometer/position changes.
   speed_kmh       no instantaneous speed field evidenced (runningStatus.avgSpeed
                   at sensor.py:251-253 is a trip average).
   tire_pressure_* tyreStatusDriver/Passenger/DriverRear/PassengerRear exist

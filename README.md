@@ -100,7 +100,7 @@ All dashboards are in the **zeekrmate** folder and have a **Vehicle** drop-down.
 
 **Battery Degradation setup:** the dashboard has two text boxes, *Rated capacity (kWh)* and *Rated range (km)*. They are empty by default. Fill them in from the published spec of your 7X variant to see capacity and range as a percentage of rated. To keep the values, save the dashboard.
 
-**Fields not yet confirmed for Zeekr** (panels show *No data* if the car does not report them): battery and outside temperature, energy remaining (so trip consumption and charge energy), battery capacity, charge power, plug status values, and speed. The [first real test](docs/first_real_test.md) checks these.
+**Fields not yet confirmed for Zeekr** (panels show *No data* if the car does not report them): battery and outside temperature, energy remaining (so trip consumption and charge energy), battery capacity, charge power, plug status values, and speed. Unconfirmed energy and temperature fields are left empty rather than estimated, and Plug Status shows the raw code marked *provisional*. The [first real test](docs/first_real_test.md) checks these.
 
 ![Overview dashboard (screenshot from upstream FordLogger)](docs/screenshot_overview.png)
 

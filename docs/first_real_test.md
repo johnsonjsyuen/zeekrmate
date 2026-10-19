@@ -156,25 +156,45 @@ docker compose up -d db
 docker compose run --rm fordlogger python -m fordlogger --once
 ```
 
-Success in the log looks like this:
+Success in the log looks like this (timestamps shortened; with no stored
+session from step 3 you see `Zeekr: logged in with a fresh session` instead of
+`reusing stored session`):
 
 ```
-Zeekr: reusing stored session
-Zeekr: 1 vehicle(s): ***1234
-Garage updated: 1 vehicle(s)
-Position #1 – <VIN> | SoC=78.0% | Range=412.0km | Odo=12345.6km | State=parked
+... [INFO] Database schema created/verified
+... [INFO] Configured 1 provider(s)
+... [INFO] Zeekr: reusing stored session
+... [INFO] Zeekr: 1 vehicle(s): ***1234
+... [INFO] Provider zeekr: 1 vehicle(s)
+... [INFO] Position #1 ***1234 | SoC=78.0% | Range=412.0km | Odo=12345.6km | State=parked
 ```
 
 `--once` exits 0 when a new position was stored, and 1 when a provider failed
-or nothing new was stored (for example, running it twice in a row while the car
-is asleep returns the same snapshot, which is skipped as a duplicate). A
-missing-variable error is a single log line naming the variables.
+or nothing new was stored. Running it twice in a row while the car is asleep
+returns the same snapshot, which is skipped as a duplicate; the second run
+then ends with:
+
+```
+... [ERROR] Single poll failed: db_ok=True providers_ok=1 providers_failed=0 positions_stored=0 position_errors=0
+```
+
+A missing-variable error is a single log line naming the variables. If the
+database is not reachable, the single line is `Database unavailable at
+<host>:<port> (OperationalError): ...`.
 
 Check what was stored:
 
 ```bash
 docker compose exec db psql -U fordlogger -c "select ts, soc_pct, range_km, odometer_km, lat is not null as has_pos, charge_power_kw, charge_status, plug_status, door_lock_status, state from positions order by id desc limit 3;"
 ```
+
+Some columns stay empty on purpose. `energy_remaining_kwh`, `bat_capacity_kwh`,
+`bat_temp_c`, `outside_temp_c`, `speed_kmh` and the tyre pressures are not
+mapped until a capture confirms which Zeekr field holds them. They are never
+estimated (for example from SoC times a nominal capacity). Until then the
+Grafana panels that need them (Total Energy Added, consumption in kWh/100 km,
+Battery Capacity, temperatures) show *No data*. Trips are still recorded:
+driving is inferred from odometer/position changes between snapshots.
 
 `ts` is the car's `climateStatus.updateTime` in UTC. If that field is missing
 or unparsable, `ts` is the last valid `updateTime` seen for the car by the
@@ -203,4 +223,8 @@ The open questions are:
 - the `statusOfChargerConnection` values;
 - whether `climateStatus.updateTime` is a good snapshot timestamp;
 - which tyre key is which corner on a right-hand-drive car;
-- a speed or driving indicator.
+- a speed or driving indicator (until then driving is inferred from odometer
+  and position changes, so the driving capture also shows how often the
+  snapshot refreshes while driving);
+- which fields, if any, report energy remaining, battery capacity and
+  temperatures (those columns stay empty until confirmed).
