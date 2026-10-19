@@ -7,10 +7,15 @@
 - zeekr_ev_api logs signed request headers (tokens) and response bodies at
   DEBUG. Its loggers, and the logger we inject into ZeekrClient, are pinned
   to WARNING regardless of the root level, and a redacting filter is added.
+  The same filter is attached to the root handlers, where it acts on records
+  from zeekr_ev_api.* / fordlogger.zeekr.client loggers, so library loggers
+  created later (logger filters are not inherited) are redacted too.
 """
 
 import logging
 import re
+
+from ...logsafe import VIN_FILTER, VIN_RE, install_handler_filters
 
 LIBRARY_LOGGER_NAME = "zeekr_ev_api"
 CLIENT_LOGGER_NAME = "fordlogger.zeekr.client"
@@ -22,7 +27,14 @@ _TOKENISH = re.compile(
     r"|(?i:bearer)\s+\S+"                 # bearer header value
     r"|[A-Za-z0-9+/=_-]{32,}"             # long opaque key/token-like strings
 )
-_VINISH = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
+# key=value / key: value pairs whose key names a credential, in any text body
+# (e.g. "access_token=Zk7Q...", "Authorization: abc"); the value is dropped.
+_SECRET_KV = re.compile(
+    r"(?i)((?<![A-Za-z0-9])(?:access|refresh|id|auth|session)?[_-]?(?:token|secret|password|passwd|pwd|"
+    r"api[_-]?key|access[_-]?key|secret[_-]?key|signature|sign|authorization|cookie)"
+    r"[\"']?\s*[=:]\s*)[\"']?[^\s&,;\"'}]+"
+)
+_VINISH = VIN_RE
 
 
 def mask_vin(vin) -> str:
@@ -37,6 +49,7 @@ def scrub(text: str, extra_secrets=()) -> str:
     for secret in extra_secrets:
         if secret and len(secret) >= 4:
             out = out.replace(secret, "<redacted>")
+    out = _SECRET_KV.sub(lambda m: m.group(1) + "<redacted>", out)
     out = _TOKENISH.sub("<redacted>", out)
     out = _VINISH.sub(lambda m: mask_vin(m.group(0)), out)
     return out
@@ -55,8 +68,22 @@ def safe_error(exc: BaseException) -> str:
     return f"{name}: {msg}" if msg else name
 
 
+_REDACTED = "_fordlogger_library_redacted"
+
+
+def _is_library_record(record: logging.LogRecord) -> bool:
+    name = record.name or ""
+    return (name == LIBRARY_LOGGER_NAME or name.startswith(LIBRARY_LOGGER_NAME + ".")
+            or name == CLIENT_LOGGER_NAME or name.startswith(CLIENT_LOGGER_NAME + "."))
+
+
 class _RedactingFilter(logging.Filter):
+    """On library loggers: redact every record. On root handlers: redact
+    records from library loggers only (others pass through unchanged)."""
+
     def filter(self, record: logging.LogRecord) -> bool:
+        if getattr(record, _REDACTED, False) or not _is_library_record(record):
+            return True
         try:
             message = record.getMessage()
         except Exception:
@@ -68,6 +95,7 @@ class _RedactingFilter(logging.Filter):
         record.exc_info = None
         record.exc_text = None
         record.stack_info = None
+        setattr(record, _REDACTED, True)
         return True
 
 
@@ -89,4 +117,5 @@ def quiet_library_loggers() -> logging.Logger:
             _harden(logging.getLogger(name))
     client_logger = logging.getLogger(CLIENT_LOGGER_NAME)
     _harden(client_logger)
+    install_handler_filters(_FILTER, VIN_FILTER)
     return client_logger

@@ -57,7 +57,11 @@ def reverse_geocode(lat: float, lon: float) -> str | None:
         r.raise_for_status()
         data = r.json()
     except Exception as e:
-        log.warning("Geocoding failed for %.4f, %.4f: %s", key[0], key[1], e)
+        # No coordinates and no exception text: the requests error embeds the
+        # full-precision request URL (lat=...&lon=...).
+        status = getattr(getattr(e, "response", None), "status_code", None)
+        log.warning("Geocoding failed (%s%s)", type(e).__name__,
+                    f", HTTP {status}" if status else "")
         return None
     finally:
         _last_request_time = time.time()

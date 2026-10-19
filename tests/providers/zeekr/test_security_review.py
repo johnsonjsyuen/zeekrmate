@@ -158,8 +158,6 @@ def test_library_error_with_html_body_keeps_jwt_and_vin_out(caplog):
     assert VIN_A not in caplog.text
 
 
-@pytest.mark.xfail(strict=True, reason="scrub only redacts tokens >= 32 chars / JWT / "
-                   "'bearer x'; shorter opaque tokens in non-JSON bodies pass through")
 def test_library_error_with_short_token_in_text_body(caplog):
     caplog.set_level(logging.DEBUG)
     quiet_library_loggers()
@@ -168,8 +166,6 @@ def test_library_error_with_short_token_in_text_body(caplog):
     assert "Zk7Qp2Lm9Xc4Rt8V" not in caplog.text
 
 
-@pytest.mark.xfail(strict=True, reason="logger filters are not inherited: a zeekr_ev_api "
-                   "child logger created after quiet_library_loggers() is unfiltered")
 def test_late_library_child_logger_is_filtered(caplog):
     caplog.set_level(logging.DEBUG)
     quiet_library_loggers()
@@ -187,8 +183,6 @@ def test_scrub_masks_vin_with_separators(text):
     assert VIN_A not in scrub(text)
 
 
-@pytest.mark.xfail(strict=True, reason="_VINISH uses \\b and upper case only: VINs joined "
-                   "with '_' / other word chars or in lower case are not masked")
 @pytest.mark.parametrize("text", [f"trip_{VIN_A}", f"{VIN_A}_2025", VIN_A.lower()])
 def test_scrub_masks_vin_without_word_boundary(text):
     assert VIN_A.lower() not in scrub(text).lower()
@@ -232,8 +226,7 @@ def test_poller_db_error_with_vin_is_masked(conn, cfg, caplog, monkeypatch):
     caplog.set_level(logging.INFO)
     poller.poll_once()
     assert "***0001" in caplog.text
-    if VIN_A in caplog.text:
-        pytest.xfail("CONFIRMED: poller logs str(psycopg2 error) unmasked (full VIN in DETAIL)")
+    assert VIN_A not in caplog.text
 
 
 # ---------------------------------------------------------------- sanitiser

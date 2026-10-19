@@ -10,6 +10,7 @@ from . import db
 from .poller import Poller
 from .geocoder import backfill_addresses
 from .providers.factory import create_providers
+from .logsafe import install_handler_filters
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +18,8 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger("fordlogger")
+# Mask VIN-like tokens in every record that reaches the console handler.
+install_handler_filters()
 # zeekr_ev_api logs signed headers and full bodies at DEBUG; keep it at WARNING
 # (matches providers.zeekr.redact.MIN_LIBRARY_LEVEL).
 logging.getLogger("zeekr_ev_api").setLevel(logging.WARNING)

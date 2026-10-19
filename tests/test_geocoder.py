@@ -55,3 +55,21 @@ def test_failure_returns_none_updates_rate_limit_and_is_not_cached(monkeypatch):
 
 def test_none_coordinates():
     assert geocoder.reverse_geocode(None, 1.0) is None
+
+
+def test_geocoding_failure_logs_no_coordinates(monkeypatch, caplog):
+    """Security review #12: the requests error text contains the full URL."""
+    import logging
+    import requests
+    from fordlogger import geocoder
+
+    def boom(*a, **kw):
+        raise requests.ConnectionError("HTTPSConnectionPool: /reverse?lat=-33.868812&lon=151.209312")
+
+    monkeypatch.setattr(geocoder.requests, "get", boom)
+    monkeypatch.setattr(geocoder, "MIN_REQUEST_GAP_S", 0)
+    geocoder._cache.clear()
+    caplog.set_level(logging.INFO)
+    assert geocoder.reverse_geocode(-33.868812, 151.209312) is None
+    assert "868" not in caplog.text and "209" not in caplog.text
+    assert "Geocoding failed (ConnectionError)" in caplog.text
