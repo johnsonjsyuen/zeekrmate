@@ -1,7 +1,7 @@
 apiVersion: 1
 
 # Grafana reads the database through a SELECT-only role (created on first
-# database start by sql/init-roles/10-grafana-readonly.sh). The user name and
+# database start by sql/init-roles/20-grafana-readonly.sh). The user name and
 # password come from the Grafana container's environment, which
 # docker-compose.yml fills from .env.
 #

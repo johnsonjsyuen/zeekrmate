@@ -66,6 +66,8 @@ def ro_conn():
     with admin.cursor() as cur:
         cur.execute(f"DROP DATABASE IF EXISTS {DB} WITH (FORCE)")
         cur.execute(f"DROP ROLE IF EXISTS {ROLE}")
+        # The script's only cluster-wide change; undo it on the test server.
+        cur.execute("GRANT CONNECT ON DATABASE postgres TO PUBLIC")
     admin.close()
 
 
@@ -109,8 +111,6 @@ def test_writes_denied_even_after_disabling_read_only(ro_conn, stmt):
     _run(ro_conn, "RESET default_transaction_read_only")
 
 
-@pytest.mark.xfail(strict=True, reason="PUBLIC keeps TEMP on the database: the role can "
-                   "create temp tables/functions once it turns read-only off (low)")
 def test_role_cannot_create_temp_objects(ro_conn):
     _run(ro_conn, "SET default_transaction_read_only = off")
     try:
@@ -118,3 +118,31 @@ def test_role_cannot_create_temp_objects(ro_conn):
             _run(ro_conn, "CREATE TEMP TABLE t_sec (x int)")
     finally:
         _run(ro_conn, "RESET default_transaction_read_only")
+
+
+@pytest.mark.parametrize("stmt", [
+    "SELECT pg_advisory_lock(4618211001)",  # the logger's SCHEMA_LOCK_ID
+    "SELECT pg_try_advisory_lock(4618211001)",
+    "SELECT pg_advisory_lock_shared(1, 2)",
+    "SELECT pg_try_advisory_xact_lock(4618211001)",
+])
+def test_role_cannot_take_advisory_locks(ro_conn, stmt):
+    """Security review #8: no blocking of the logger's ensure_schema()."""
+    with pytest.raises(psycopg2.Error):
+        _run(ro_conn, stmt)
+
+
+def test_role_cannot_connect_to_postgres_db(ro_conn):
+    with pytest.raises(psycopg2.OperationalError):
+        psycopg2.connect(host=ro_conn.info.host, port=ro_conn.info.port, dbname="postgres",
+                         user=ROLE, password=PASSWORD).close()
+
+
+def test_logger_schema_lock_still_works(ro_conn, cfg):
+    """The superuser owner (logger) is unaffected by the REVOKEs."""
+    from fordlogger import db
+    owner = _admin(dict(cfg, db_host=ro_conn.info.host), DB)
+    try:
+        db.ensure_schema(owner)
+    finally:
+        owner.close()

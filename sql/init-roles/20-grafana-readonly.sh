@@ -51,6 +51,30 @@ GRANT SELECT ON ALL TABLES IN SCHEMA public TO :"ro_user";
 -- Tables the logger creates later (schema changes) become readable too.
 ALTER DEFAULT PRIVILEGES FOR ROLE :"owner" IN SCHEMA public
   GRANT SELECT ON TABLES TO :"ro_user";
+
+-- No temporary tables/functions for non-superusers (PUBLIC has TEMP by
+-- default; the read-only role could use it after turning read-only off).
+REVOKE TEMP ON DATABASE :"db" FROM PUBLIC;
+-- No advisory locks for non-superusers: a Grafana user could otherwise hold
+-- the logger's schema lock (db.SCHEMA_LOCK_ID) and block its start-up. The
+-- logger connects as the superuser POSTGRES_USER and is not affected; a
+-- future non-superuser logger role needs GRANT EXECUTE on these.
+DO $$
+DECLARE f regprocedure;
+BEGIN
+  FOR f IN SELECT p.oid::regprocedure FROM pg_proc p
+           JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname = 'pg_catalog' AND p.proname ~ '^pg_(try_)?advisory_(xact_)?lock(_shared)?$'
+  LOOP
+    EXECUTE format('REVOKE EXECUTE ON FUNCTION %s FROM PUBLIC', f);
+  END LOOP;
+END
+$$;
+-- The read-only role only needs this database.
+SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'postgres') AS has_postgres_db \gset
+\if :has_postgres_db
+REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+\endif
 SQL
 
 echo "Read-only role '$GRAFANA_DB_USER' is ready on database '$POSTGRES_DB'."
