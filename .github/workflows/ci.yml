@@ -42,10 +42,10 @@ jobs:
       ZEEKRMATE_DB_PORT: "5432"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Matches the python:3.15-slim runtime image.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.15"
           cache: pip
@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Throw-away .env so the required ${...:?} variables resolve.
       - name: Render docker-compose.yml

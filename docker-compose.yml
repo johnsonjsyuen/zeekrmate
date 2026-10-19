@@ -71,7 +71,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:11.1.0
+    image: grafana/grafana:12.4.13
     ports:
       # Loopback only by default. To open Grafana to your LAN, set
       # GRAFANA_BIND=0.0.0.0 in .env (and use a strong admin password).

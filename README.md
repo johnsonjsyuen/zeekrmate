@@ -18,7 +18,7 @@ It is a modified fork of [FordLogger](https://github.com/lutzerb/fordlogger) by 
 - **Charge session detection**: SoC added, duration, power and (if reported) energy added.
 - **8 Grafana dashboards**: Overview, Trips, Charging, Consumption, Battery Degradation, Map, Timeline and Raw Data.
 - **Raw payload storage**: the API response is kept in `positions.raw_json` so the mapping can be checked and improved later.
-- **Docker Compose deployment**: logger, PostgreSQL 16 and Grafana 11.
+- **Docker Compose deployment**: logger, PostgreSQL 16 and Grafana 12.
 
 ## Requirements
 
@@ -81,7 +81,7 @@ This starts:
 
 - **zeekrmate**: the polling logger.
 - **db**: PostgreSQL 16. It is not published on any host port.
-- **grafana**: Grafana 11 at <http://localhost:3000> (user `admin`, password `GRAFANA_ADMIN_PASSWORD`).
+- **grafana**: Grafana 12 at <http://localhost:3000> (user `admin`, password `GRAFANA_ADMIN_PASSWORD`).
 
 ## Dashboards
 
