@@ -79,3 +79,14 @@ class TestChargeDetector:
         db.insert_position(conn, Position(ts=now, vin="TEST001", soc_pct=20.0, state="charging"))
         cs = finalize_charge_session(conn, "TEST001", now, now + timedelta(minutes=30))
         assert cs is None
+
+    def test_dc_threshold_is_configurable(self, conn):
+        db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
+        now = datetime.now(timezone.utc)
+        for i, kw in enumerate((11.0, 22.0)):
+            db.insert_position(conn, Position(ts=now + timedelta(minutes=30 * i),
+                                              vin="TEST001", charge_power_kw=kw))
+        end = now + timedelta(minutes=30)
+        assert finalize_charge_session(conn, "TEST001", now, end).charge_type == "AC"
+        assert finalize_charge_session(conn, "TEST001", now, end,
+                                       dc_threshold_kw=11.0).charge_type == "DC"
