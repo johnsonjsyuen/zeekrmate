@@ -16,7 +16,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt pytest
 ```
 
-3. Start a PostgreSQL 16 for the tests. The Compose `db` service does not publish a host port, so either run your own PostgreSQL or temporarily uncomment the loopback port mapping in `docker-compose.yml`.
+3. Start a PostgreSQL 18 for the tests. The Compose `db` service does not publish a host port, so either run your own PostgreSQL or temporarily uncomment the loopback port mapping in `docker-compose.yml`.
 
 ## Running tests
 
