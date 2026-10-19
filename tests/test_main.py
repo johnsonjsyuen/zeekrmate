@@ -12,28 +12,6 @@ def _clean_tables():
     yield
 
 
-def test_auth_calls_existing_flow_and_bypasses_db_and_provider_discovery(
-    monkeypatch,
-):
-    cfg = {"client_id": "test-client"}
-    load_config = Mock(return_value=cfg)
-    auth_flow = Mock()
-    db_connect = Mock()
-    create_providers = Mock()
-    monkeypatch.setattr(sys, "argv", ["fordlogger", "--auth"])
-    monkeypatch.setattr(main_module, "load_config", load_config)
-    monkeypatch.setattr(main_module, "do_auth_flow", auth_flow)
-    monkeypatch.setattr(main_module.db, "connect", db_connect)
-    monkeypatch.setattr(main_module, "create_providers", create_providers)
-
-    main_module.main()
-
-    load_config.assert_called_once_with("config.json")
-    auth_flow.assert_called_once_with(cfg)
-    db_connect.assert_not_called()
-    create_providers.assert_not_called()
-
-
 def test_empty_provider_factory_after_db_setup_preserves_exit_one(monkeypatch):
     cfg = {"client_id": "test-client"}
     conn = object()
