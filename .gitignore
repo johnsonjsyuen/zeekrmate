@@ -1,14 +1,13 @@
 # Secrets & tokens
 config.json
-tokens.json
+tokens*.json
+*.session.json
+data/
 secret.json
 *.pem
 .env
 
 # Database
-ford_tracker.db
-ford_tracker.db-wal
-ford_tracker.db-shm
 
 # Python
 venv/

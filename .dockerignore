@@ -9,11 +9,11 @@ __pycache__/
 .env
 .env.example
 config.json
-tokens.json
+tokens*.json
+*.session.json
+data/
 secret.json
 *.pem
-ford_tracker.py
-ford_tracker.db*
 archive/
 .DS_Store
 .vscode/
