@@ -45,7 +45,7 @@ def main():
 
     providers = create_providers(cfg)
     if not providers:
-        log.error("No token files found — run: python -m fordlogger --auth")
+        log.error("No vehicle providers configured — add a \"providers\" entry to config.json")
         sys.exit(1)
     poller = Poller(cfg, conn, providers)
 
