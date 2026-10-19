@@ -76,6 +76,12 @@ def finalize_charge_session(conn, vin: str, charge_start_ts, charge_end_ts,
         outside_temp_c=outside_temp,
     )
 
+    existing = db.overlapping_row(conn, "charge_sessions", vin, cs.start_ts, cs.end_ts)
+    if existing is not None:
+        log.warning("Charge session for %s overlaps session #%d; not recorded twice",
+                    mask_vin(vin), existing)
+        return None
+
     cs_id = db.insert_charge_session(conn, cs)
     cs.id = cs_id
     if geocoding:

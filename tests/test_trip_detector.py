@@ -76,6 +76,15 @@ class TestTripDetector:
         assert trip is None
 
 
+    def test_same_drive_is_not_recorded_twice(self, conn):
+        """E2E-5: a re-finalised (overlapping) drive does not duplicate the trip."""
+        start, end = self._setup_driving(conn)
+        assert finalize_trip(conn, "TEST001", start, end) is not None
+        assert finalize_trip(conn, "TEST001", start, end + timedelta(minutes=4)) is None
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM trips")
+            assert cur.fetchone()[0] == 1
+
 class TestTripRobustness:
     def test_null_endpoints_use_nearest_non_null_values(self, conn):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))

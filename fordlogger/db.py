@@ -266,3 +266,21 @@ def get_position_before(conn, vin: str, ts) -> dict | None:
             (vin, ts),
         )
         return cur.fetchone()
+
+
+def overlapping_row(conn, table: str, vin: str, start_ts, end_ts):
+    """id of an existing trip/charge session for vin overlapping [start, end].
+
+    Guards finalisation against recording the same drive or charge twice
+    (a retried insert whose commit did succeed, or a restored state).
+    """
+    if table not in ("trips", "charge_sessions"):
+        raise ValueError(table)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT id FROM {table} WHERE vin = %s AND start_ts <= %s AND end_ts >= %s "
+            "ORDER BY start_ts LIMIT 1",
+            (vin, end_ts, start_ts),
+        )
+        row = cur.fetchone()
+        return row[0] if row else None

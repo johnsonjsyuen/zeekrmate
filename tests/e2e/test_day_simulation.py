@@ -592,11 +592,10 @@ def test_long_outage_mid_trip_does_not_stretch_trip(cfg, conn, tmp_path, monkeyp
         c.close()
 
 
-@pytest.mark.xfail(strict=True, reason="BUG E2E-5: a failed insert_state is only logged, never "
-                   "retried; a restart before the next state change restores DRIVING and "
-                   "finalises the same drive a second time (duplicate, overlapping trip)")
 @pytest.mark.parametrize("signal", ["inferred", "explicit"])
 def test_lost_state_row_does_not_duplicate_trip(cfg, conn, tmp_path, monkeypatch, admin, signal):
+    """E2E-5: the position and its state row are written in one transaction;
+    a failed state insert re-processes the reading instead of losing the row."""
     if signal == "explicit":
         driving_signal_shim(monkeypatch)
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)

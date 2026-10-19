@@ -372,7 +372,13 @@ class Poller:
         try:
             new_state, changed = sm.transition(pos)
             pos.state = new_state.value
-            pos_id = db.insert_position(self.conn, pos)
+            # The position and its state change are stored atomically: a lost
+            # state row would otherwise let a restart restore a finished drive
+            # and record it a second time.
+            with self.conn:
+                pos_id = db.insert_position(self.conn, pos)
+                if changed:
+                    db.insert_state(self.conn, vin, sm.last_change_ts, new_state.value, old_state.value)
         except Exception:
             # Nothing was persisted: roll the state machine back so the same
             # reading is processed again on the next cycle.
@@ -386,7 +392,8 @@ class Poller:
             pos_id, mask_vin(vin), pos.soc_pct, pos.range_km, pos.odometer_km, new_state.value,
         )
         if changed:
-            self._handle_transition(vin, old_state, new_state, sm.last_change_ts)
+            self._handle_transition(vin, old_state, new_state, sm.last_change_ts,
+                                    state_recorded=True)
         return vin
 
     def _tick(self, vin: str, observed: datetime):
@@ -409,7 +416,8 @@ class Poller:
             return prev["ts"]
         return ts
 
-    def _handle_transition(self, vin: str, old: VehicleState, new: VehicleState, ts: datetime):
+    def _handle_transition(self, vin: str, old: VehicleState, new: VehicleState, ts: datetime,
+                           state_recorded: bool = False):
         # Update in-memory bookkeeping first so a DB error cannot lose a drive.
         if new == VehicleState.DRIVING:
             self._drive_start[vin] = self._trip_start(vin, ts)
@@ -431,16 +439,20 @@ class Poller:
             else:
                 log.warning("Charge end for %s without a known start; session not recorded", mask_vin(vin))
 
-        try:
-            db.insert_state(self.conn, vin, ts, new.value, old.value)
-        except Exception as e:
-            log.error("Could not record state change for %s: %s", mask_vin(vin), e)
+        if not state_recorded:
+            # Queued ahead of the trip/charge jobs and retried like them.
+            self._pending_finalize.insert(0, {
+                "kind": "state", "vin": vin, "ts": ts, "state": new.value,
+                "prev": old.value, "attempts": 0})
         self._run_pending_finalizations()
 
     def _run_pending_finalizations(self):
         remaining = []
         for job in self._pending_finalize:
             try:
+                if job["kind"] == "state":
+                    db.insert_state(self.conn, job["vin"], job["ts"], job["state"], job["prev"])
+                    continue
                 if job["kind"] == "trip":
                     obj = finalize_trip(self.conn, job["vin"], job["start"], job["end"])
                 else:

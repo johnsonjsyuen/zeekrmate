@@ -88,5 +88,7 @@ class TestChargeDetector:
                                               vin="TEST001", charge_power_kw=kw))
         end = now + timedelta(minutes=30)
         assert finalize_charge_session(conn, "TEST001", now, end).charge_type == "AC"
+        with conn.cursor() as cur:  # same window again: drop the first session
+            cur.execute("DELETE FROM charge_sessions")
         assert finalize_charge_session(conn, "TEST001", now, end,
                                        dc_threshold_kw=11.0).charge_type == "DC"

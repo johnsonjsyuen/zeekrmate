@@ -103,6 +103,11 @@ def finalize_trip(conn, vin: str, drive_start_ts, drive_end_ts, geocoding: bool 
         outside_temp_c=outside_temp,
     )
 
+    existing = db.overlapping_row(conn, "trips", vin, trip.start_ts, trip.end_ts)
+    if existing is not None:
+        log.warning("Trip for %s overlaps trip #%d; not recorded twice", mask_vin(vin), existing)
+        return None
+
     trip_id = db.insert_trip(conn, trip)
     trip.id = trip_id
     if geocoding:

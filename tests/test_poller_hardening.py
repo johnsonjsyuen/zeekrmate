@@ -361,3 +361,50 @@ class _FrozenDatetime:
 
     def __instancecheck__(self, obj):
         return isinstance(obj, datetime)
+
+
+class TestStateRows:
+    """E2E-5: state rows are never silently lost."""
+
+    def test_reading_and_state_row_are_atomic(self, setup, conn, monkeypatch):
+        poller, provider = setup
+        t0 = _base()
+        _poll(poller, provider, _pos(t0))
+        real = db.insert_state
+        calls = []
+
+        def flaky(*a, **kw):
+            calls.append(a)
+            if len(calls) == 1:
+                raise RuntimeError("state insert failed")
+            return real(*a, **kw)
+
+        monkeypatch.setattr(db, "insert_state", flaky)
+        result = _poll(poller, provider, _pos(t0 + timedelta(minutes=2), speed_kmh=60.0))
+        assert result.position_errors == 1 and _count(conn) == 1  # rolled back together
+        assert poller.machines[VIN].state == VehicleState.PARKED
+        _poll(poller, provider, _pos(t0 + timedelta(minutes=2), speed_kmh=60.0))
+        assert _count(conn) == 2 and _count(conn, "states") == 1
+
+    def test_tick_state_row_is_retried(self, setup, conn, monkeypatch):
+        poller, provider = setup
+        t0 = _base()
+        _poll(poller, provider, _pos(t0, speed_kmh=60.0))
+        real = db.insert_state
+        fail = {"n": 1}
+
+        def flaky(*a, **kw):
+            if fail["n"]:
+                fail["n"] -= 1
+                raise RuntimeError("state insert failed")
+            return real(*a, **kw)
+
+        monkeypatch.setattr(db, "insert_state", flaky)
+        later = datetime.now(timezone.utc) + timedelta(minutes=20)
+        monkeypatch.setattr(poller_module, "datetime", _FrozenDatetime(later))
+        _poll(poller, provider)  # no fresh data: tick ends the drive, state insert fails
+        assert poller.machines[VIN].state == VehicleState.PARKED
+        _poll(poller, provider)  # retried from the pending queue
+        with conn.cursor() as cur:
+            cur.execute("SELECT prev_state, state FROM states ORDER BY ts, id")
+            assert cur.fetchall()[-1] == ("driving", "parked")
