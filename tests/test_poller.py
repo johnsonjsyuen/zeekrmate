@@ -17,7 +17,7 @@ from tests.fakes import FakeProvider, BrokenNameProvider
 class TestPoller:
     def _make_poller(self, conn, cfg):
         provider = FakeProvider(
-            vehicles=[Vehicle(vin="TEST001", make="Ford", model="Puma")]
+            vehicles=[Vehicle(vin="TEST001", make="Zeekr", model="7X")]
         )
         poller = Poller(cfg, conn, provider)
         return poller, provider
@@ -32,9 +32,7 @@ class TestPoller:
             speed_kmh=0.0,
             lat=47.81,
             lon=16.22,
-            plug_status="DISCONNECTED",
-            charge_status="NOT_READY",
-            ignition_status="OFF",
+            charge_power_kw=0.0,
         )
         defaults.update(kwargs)
         return Position(**defaults)
@@ -55,12 +53,12 @@ class TestPoller:
         with conn.cursor() as cur:
             cur.execute("SELECT make, model FROM vehicles WHERE vin = 'TEST001'")
             row = cur.fetchone()
-        assert row == ("Ford", "Puma")
+        assert row == ("Zeekr", "7X")
 
     def test_state_transition_logged(self, conn, cfg):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
         poller, provider = self._make_poller(conn, cfg)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) - timedelta(hours=2)
 
         # First: parked
         provider.positions = [self._make_position(ts=now)]
@@ -80,7 +78,7 @@ class TestPoller:
     def test_trip_finalized_on_stop(self, conn, cfg):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
         poller, provider = self._make_poller(conn, cfg)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) - timedelta(hours=2)
 
         # Drive start
         provider.positions = [self._make_position(
@@ -102,6 +100,13 @@ class TestPoller:
             soc_pct=74.0, energy_remaining_kwh=32.0,
         )]
         poller.poll_once()
+        assert poller.machines["TEST001"].state == VehicleState.DRIVING  # debounce
+        provider.positions = [self._make_position(
+            ts=now + timedelta(minutes=12), speed_kmh=0.0, odometer_km=1020.0,
+            soc_pct=74.0, energy_remaining_kwh=32.0,
+        )]
+        poller.poll_once()
+        assert poller.machines["TEST001"].state == VehicleState.PARKED
 
         # Check trip was created
         with conn.cursor() as cur:
@@ -115,28 +120,30 @@ class TestPoller:
     def test_charge_session_finalized(self, conn, cfg):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
         poller, provider = self._make_poller(conn, cfg)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) - timedelta(hours=2)
 
         # Charge start
         provider.positions = [self._make_position(
-            ts=now, charge_status="ChargingAC", plug_status="CONNECTED",
-            charge_power_kw=7.4, soc_pct=20.0, energy_remaining_kwh=10.0,
+            ts=now, charge_power_kw=7.4, soc_pct=20.0, energy_remaining_kwh=10.0,
         )]
         poller.poll_once()
         assert poller.machines["TEST001"].state == VehicleState.CHARGING
 
         # Mid charge
         provider.positions = [self._make_position(
-            ts=now + timedelta(minutes=30), charge_status="ChargingAC",
-            plug_status="CONNECTED", charge_power_kw=7.4, soc_pct=50.0,
+            ts=now + timedelta(minutes=30), charge_power_kw=7.4, soc_pct=50.0,
             energy_remaining_kwh=24.0,
         )]
         poller.poll_once()
 
         # Charge done (parked)
         provider.positions = [self._make_position(
-            ts=now + timedelta(minutes=60), charge_status="NOT_READY",
-            plug_status="DISCONNECTED", charge_power_kw=0.0, soc_pct=80.0,
+            ts=now + timedelta(minutes=60), charge_power_kw=0.0, soc_pct=80.0,
+            energy_remaining_kwh=37.0,
+        )]
+        poller.poll_once()
+        provider.positions = [self._make_position(
+            ts=now + timedelta(minutes=62), charge_power_kw=0.0, soc_pct=80.0,
             energy_remaining_kwh=37.0,
         )]
         poller.poll_once()
