@@ -15,8 +15,9 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 log = logging.getLogger("fordlogger")
-# zeekr_ev_api logs signed headers and full bodies at DEBUG; never go below INFO.
-logging.getLogger("zeekr_ev_api").setLevel(logging.INFO)
+# zeekr_ev_api logs signed headers and full bodies at DEBUG; keep it at WARNING
+# (matches providers.zeekr.redact.MIN_LIBRARY_LEVEL).
+logging.getLogger("zeekr_ev_api").setLevel(logging.WARNING)
 
 
 def _install_signal_handlers(poller):
