@@ -702,17 +702,16 @@ def test_once_exit_codes(cfg, conn, tmp_path, monkeypatch):
     assert e.value.code == 1
 
 
-def test_once_db_unreachable_exits_nonzero(cfg, tmp_path, monkeypatch):
+def test_once_db_unreachable_exits_nonzero(cfg, tmp_path, monkeypatch, caplog):
+    """E2E-12: one log line and exit 1, no traceback."""
     env = {name: f"v-{name}" for name in SECRET_ENV_VARS}
     bad = dict(cfg, db_port=1)  # nothing listens there
     monkeypatch.delenv("FORDLOGGER_DB_PORT", raising=False)
-    code = None
-    try:
-        code = _run_once(monkeypatch, tmp_path, bad, env)
-    except psycopg2.OperationalError:
-        code = "traceback"
-    # Documented: non-zero. Observed: uncaught OperationalError traceback (exit 1).
-    assert code in (1, "traceback")
+    with caplog.at_level(logging.INFO, logger="fordlogger"):
+        assert _run_once(monkeypatch, tmp_path, bad, env) == 1
+    errors = [r for r in caplog.records if r.levelno >= logging.ERROR]
+    assert len(errors) == 1 and errors[0].exc_info is None
+    assert errors[0].getMessage().startswith("Database unavailable at localhost:1 (OperationalError)")
 
 
 # ------------------------------------------------------------ Grafana panels

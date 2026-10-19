@@ -117,3 +117,30 @@ def test_provider_config_error_exits_one_without_traceback(monkeypatch, caplog):
     errors = [r for r in caplog.records if r.levelname == "ERROR"]
     assert len(errors) == 1 and "ZEEKR_USERNAME is not set" in errors[0].getMessage()
     assert errors[0].exc_info is None
+
+
+@pytest.mark.parametrize("password", ["change-me-too", " Change-Me-as-well", "change-me-x"])
+def test_placeholder_db_password_is_refused(monkeypatch, caplog, password):
+    connect = Mock()
+    monkeypatch.setattr(sys, "argv", ["fordlogger", "--once"])
+    monkeypatch.setattr(main_module, "load_config", Mock(return_value={"db_password": password}))
+    monkeypatch.setattr(main_module.db, "connect", connect)
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main()
+    assert exc_info.value.code == 1
+    connect.assert_not_called()
+    assert "placeholder" in caplog.text and password.strip() not in caplog.text
+
+
+def test_db_unavailable_is_one_line(monkeypatch, caplog):
+    import psycopg2
+    monkeypatch.setattr(sys, "argv", ["fordlogger"])
+    monkeypatch.setattr(main_module, "load_config",
+                        Mock(return_value={"db_host": "db", "db_port": 5432, "db_password": "x"}))
+    monkeypatch.setattr(main_module.db, "connect",
+                        Mock(side_effect=psycopg2.OperationalError("could not connect\nDETAIL: x")))
+    with pytest.raises(SystemExit) as exc_info:
+        main_module.main()
+    assert exc_info.value.code == 1
+    assert "Database unavailable at db:5432 (OperationalError): could not connect" in caplog.text
+    assert "DETAIL" not in caplog.text
