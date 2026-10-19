@@ -32,3 +32,6 @@ archive/
 .worktrees/
 cloudflared.deb
 *.old
+
+# Zeekr captures (raw API dumps contain personal data)
+captures/

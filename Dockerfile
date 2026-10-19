@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY fordlogger/ fordlogger/
+COPY scripts/ scripts/
 COPY sql/ sql/
 
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \

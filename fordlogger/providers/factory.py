@@ -11,6 +11,17 @@ ProviderBuilder = Callable[[dict], VehicleProvider]
 PROVIDER_BUILDERS: dict[str, ProviderBuilder] = {}
 
 
+def _build_zeekr(cfg: dict) -> VehicleProvider:
+    # Imported lazily so that importing fordlogger.providers stays light
+    # (no zeekr_ev_api / requests / crypto until a Zeekr provider is built).
+    from .zeekr.provider import build_provider
+
+    return build_provider(cfg)
+
+
+PROVIDER_BUILDERS["zeekr"] = _build_zeekr
+
+
 def create_providers(cfg: dict) -> list[VehicleProvider]:
     """Create one provider per entry in cfg["providers"]."""
     providers: list[VehicleProvider] = []

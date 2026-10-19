@@ -4,5 +4,5 @@
   "db_name": "fordlogger",
   "db_user": "fordlogger",
   "db_password": "fordlogger",
-  "providers": []
+  "providers": [{"type": "zeekr"}]
 }
