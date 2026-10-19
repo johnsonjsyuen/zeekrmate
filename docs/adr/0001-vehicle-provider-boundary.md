@@ -1,6 +1,6 @@
 # ADR 0001: Vehicle Provider Boundary (Strategic)
 
-- Status: Accepted
+- Status: Accepted; superseded in part by [ADR 0002](0002-zeekr-only.md) (2026-10-19: Ford support removed, so the Ford-specific consequences below no longer apply; the provider boundary itself stands)
 - Date: 2026-08-29
 - Scope: PR 1 only
 

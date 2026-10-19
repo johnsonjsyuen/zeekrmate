@@ -1,14 +1,40 @@
 services:
-  fordlogger:
-    build: .
+  zeekrmate:
+    build:
+      context: .
+      args:
+        # The container runs as this (non-root) uid/gid; ./data must be
+        # writable by it (see docs/first_real_test.md, step 2).
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
     volumes:
-      - ./config.json:/app/config.json
-      - ./tokens.json:/app/tokens.json
-      - .:/app/data
+      # config.json must exist on the host first (no directory is created).
+      - type: bind
+        source: ./config.json
+        target: /app/config.json
+        read_only: true
+        bind:
+          create_host_path: false
+      # Only data mount: Zeekr session (zeekr_session.json) and captures.
+      - ./data:/app/data
+    # Only what the logger needs, listed one by one: there is deliberately no
+    # env_file, so the Grafana passwords in .env never reach this container.
+    # Empty ZEEKR_* values are reported by the logger by NAME only.
     environment:
-      - FORDLOGGER_STORE_RAW_JSON=${FORDLOGGER_STORE_RAW_JSON:-true}
-      - FORDLOGGER_GEOCODING=${FORDLOGGER_GEOCODING:-true}
-      - FORDLOGGER_TOKEN_DIR=/app/data
+      ZEEKRMATE_STORE_RAW_JSON: ${ZEEKRMATE_STORE_RAW_JSON:-true}
+      ZEEKRMATE_GEOCODING: ${ZEEKRMATE_GEOCODING:-true}
+      ZEEKRMATE_STATE_DIR: /app/data
+      ZEEKRMATE_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      ZEEKR_CAPTURE_DIR: /app/data/captures
+      ZEEKR_USERNAME: ${ZEEKR_USERNAME:-}
+      ZEEKR_PASSWORD: ${ZEEKR_PASSWORD:-}
+      ZEEKR_COUNTRY_CODE: ${ZEEKR_COUNTRY_CODE:-AU}
+      ZEEKR_HMAC_ACCESS_KEY: ${ZEEKR_HMAC_ACCESS_KEY:-}
+      ZEEKR_HMAC_SECRET_KEY: ${ZEEKR_HMAC_SECRET_KEY:-}
+      ZEEKR_PASSWORD_PUBLIC_KEY: ${ZEEKR_PASSWORD_PUBLIC_KEY:-}
+      ZEEKR_PROD_SECRET: ${ZEEKR_PROD_SECRET:-}
+      ZEEKR_VIN_KEY: ${ZEEKR_VIN_KEY:-}
+      ZEEKR_VIN_IV: ${ZEEKR_VIN_IV:-}
     depends_on:
       db:
         condition: service_healthy
@@ -17,16 +43,28 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: fordlogger
-      POSTGRES_USER: fordlogger
-      POSTGRES_PASSWORD: fordlogger
+      POSTGRES_DB: zeekrmate
+      POSTGRES_USER: zeekrmate
+      # Required. Set in .env (see .env.example). Only applied when the
+      # pgdata volume is first initialised; changing it later needs ALTER ROLE.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Used by sql/init-roles/20-grafana-readonly.sh to create Grafana's
+      # SELECT-only role.
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_ro}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set GRAFANA_DB_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    ports:
-      - "5432:5432"
+      # Init scripts run in name order, only on an empty pgdata volume.
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      - ./sql/init-roles/20-grafana-readonly.sh:/docker-entrypoint-initdb.d/20-grafana-readonly.sh:ro
+    # No published port: the logger and Grafana reach Postgres over the
+    # compose network, and backup.sh/restore.sh use `docker compose exec`.
+    # The database holds your full location history. If you need host access
+    # (e.g. psql from the host), publish it on loopback only:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fordlogger"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -35,16 +73,27 @@ services:
   grafana:
     image: grafana/grafana:11.1.0
     ports:
-      - "3000:3000"
+      # Loopback only by default. To open Grafana to your LAN, set
+      # GRAFANA_BIND=0.0.0.0 in .env (and use a strong admin password).
+      - "${GRAFANA_BIND:-127.0.0.1}:3000:3000"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      GF_INSTALL_PLUGINS: pr0ps-trackmap-panel
-      GF_SECURITY_ADMIN_PASSWORD: fordlogger
+      # Required. Only applied on Grafana's first start (empty grafana-data
+      # volume); later changes are made in the Grafana UI or with
+      # `grafana cli admin reset-admin-password`.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # Read by grafana/provisioning/datasources/postgres.yml.
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_ro}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set GRAFANA_DB_PASSWORD in .env}
     restart: unless-stopped
 
 volumes:

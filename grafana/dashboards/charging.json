@@ -1,7 +1,7 @@
 {
-  "uid": "fordlogger-charging",
+  "uid": "zeekrmate-charging",
   "title": "Charging",
-  "description": "FordLogger charging sessions and charge curves",
+  "description": "zeekrmate charging sessions and charge curves",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
@@ -9,7 +9,7 @@
   "liveNow": false,
   "refresh": "",
   "tags": [
-    "fordlogger",
+    "zeekrmate",
     "charging"
   ],
   "time": {
@@ -31,7 +31,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -70,7 +70,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -92,7 +92,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -132,15 +132,16 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(energy_added_kwh), 0) AS \"Total Energy (kWh)\" FROM charge_sessions WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT SUM(energy_added_kwh) AS \"Total Energy (kWh)\" FROM charge_sessions WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on energy_remaining_kwh (energy added is derived from it), which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 3,
@@ -154,7 +155,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -194,7 +195,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -216,7 +217,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -264,15 +265,16 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(MAX(max_power_kw), 0) AS \"Max Power (kW)\" FROM charge_sessions WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT MAX(max_power_kw) AS \"Max Power (kW)\" FROM charge_sessions WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on charge_power_kw, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it. Colour thresholds are generic; retune once you have real charging data."
     },
     {
       "id": 5,
@@ -286,7 +288,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -548,7 +550,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "table",
@@ -556,13 +558,14 @@
           "rawSql": "SELECT\n  start_ts,\n  COALESCE(address, '') AS location,\n  charge_type,\n  start_soc_pct,\n  end_soc_pct,\n  soc_added_pct,\n  energy_added_kwh,\n  max_power_kw,\n  ROUND(duration_s / 60.0, 0) AS duration_min,\n  outside_temp_c\nFROM charge_sessions\nWHERE vin = '$vin' AND  start_ts >= $__timeFrom()\n  AND start_ts <= $__timeTo()\nORDER BY start_ts DESC;",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on charge_power_kw and energy_remaining_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it. The Type column is a power-threshold guess (AC/DC) and can mislabel fast AC charging."
     },
     {
       "id": 6,
       "type": "timeseries",
       "title": "Charge Power (kW)",
-      "description": "Charge power over time from position data (charge curve)",
+      "description": "Charge power over time from position data (charge curve) Unconfirmed for Zeekr: depends on charge_power_kw, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it.",
       "gridPos": {
         "h": 10,
         "w": 12,
@@ -571,7 +574,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -645,7 +648,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "time_series",
@@ -668,7 +671,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -752,7 +755,7 @@
         {
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "editorMode": "code",
           "format": "time_series",
@@ -771,7 +774,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,

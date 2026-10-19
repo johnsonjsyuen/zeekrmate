@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 import json
 
-from fordlogger.models import Vehicle, Position, Trip, ChargeSession
-from fordlogger import db
+from zeekrmate.models import Vehicle, Position, Trip, ChargeSession
+from zeekrmate import db
 
 
 class TestVehicle:

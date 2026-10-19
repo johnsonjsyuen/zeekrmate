@@ -1,7 +1,7 @@
 {
-  "uid": "fordlogger-timeline",
+  "uid": "zeekrmate-timeline",
   "title": "Timeline",
-  "description": "FordLogger vehicle state history timeline",
+  "description": "zeekrmate vehicle state history timeline",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
@@ -9,7 +9,7 @@
   "liveNow": false,
   "refresh": "",
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-7d",
@@ -24,7 +24,7 @@
       "type": "state-timeline",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 6,
@@ -37,7 +37,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts as time, state as \"State\" FROM states WHERE vin = '$vin' AND  $__timeFilter(ts) ORDER BY ts",
           "format": "table",
@@ -105,7 +105,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 10,
@@ -118,7 +118,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts as time, soc_pct as \"SoC %\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND soc_pct IS NOT NULL ORDER BY ts",
           "format": "table",
@@ -128,7 +128,7 @@
           "refId": "B",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts as time, state as \"State\" FROM states WHERE vin = '$vin' AND  $__timeFilter(ts) ORDER BY ts",
           "format": "table",
@@ -259,7 +259,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 10,
@@ -272,7 +272,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts as time, speed_kmh as \"Speed km/h\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND speed_kmh IS NOT NULL ORDER BY ts",
           "format": "table",
@@ -336,7 +336,8 @@
             "mean"
           ]
         }
-      }
+      },
+      "description": "Unconfirmed for Zeekr: depends on speed_kmh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     }
   ],
   "templating": {
@@ -347,7 +348,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,

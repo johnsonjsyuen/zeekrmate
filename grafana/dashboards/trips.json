@@ -1,7 +1,7 @@
 {
-  "uid": "fordlogger-trips",
+  "uid": "zeekrmate-trips",
   "title": "Trips",
-  "description": "FordLogger - Trip overview and statistics",
+  "description": "zeekrmate: Trip overview and statistics",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
@@ -15,7 +15,7 @@
   "fiscalYearStartMonth": 0,
   "liveNow": false,
   "tags": [
-    "fordlogger",
+    "zeekrmate",
     "trips"
   ],
   "panels": [
@@ -31,7 +31,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -71,7 +71,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT COUNT(*) AS \"Total Trips\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
@@ -91,7 +91,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -132,9 +132,9 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
-          "rawSql": "SELECT COALESCE(SUM(distance_km), 0) AS \"Total Distance km\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT SUM(distance_km) AS \"Total Distance km\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
           "editorMode": "code"
         }
@@ -152,7 +152,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -205,13 +205,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
-          "rawSql": "SELECT COALESCE(AVG(consumption_kwh_per_100km), 0) AS \"Avg Consumption\" FROM trips WHERE vin = '$vin' AND  consumption_kwh_per_100km IS NOT NULL AND start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT AVG(consumption_kwh_per_100km) AS \"Avg Consumption\" FROM trips WHERE vin = '$vin' AND  consumption_kwh_per_100km IS NOT NULL AND start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on energy_remaining_kwh (trip consumption is derived from it), which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 4,
@@ -225,7 +226,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -266,9 +267,9 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
-          "rawSql": "SELECT COALESCE(AVG(distance_km), 0) AS \"Avg Trip Distance\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT AVG(distance_km) AS \"Avg Trip Distance\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
           "editorMode": "code"
         }
@@ -286,7 +287,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -500,7 +501,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT\n  start_ts AS \"Start\",\n  COALESCE(start_address, '') AS \"From\",\n  COALESCE(end_address, '') AS \"To\",\n  distance_km AS \"Distance km\",\n  CASE\n    WHEN duration_s >= 3600 THEN\n      CONCAT(FLOOR(duration_s / 3600)::TEXT, 'h ', LPAD((FLOOR(duration_s % 3600 / 60))::TEXT, 2, '0'), 'm')\n    ELSE\n      CONCAT(FLOOR(duration_s / 60)::TEXT, 'm ', LPAD((duration_s % 60)::TEXT, 2, '0'), 's')\n  END AS \"Duration\",\n  start_soc_pct AS \"Start SoC %\",\n  end_soc_pct AS \"End SoC %\",\n  soc_used_pct AS \"SoC Used %\",\n  consumption_kwh_per_100km AS \"Consumption\",\n  avg_speed_kmh AS \"Avg Speed\",\n  max_speed_kmh AS \"Max Speed\",\n  outside_temp_c AS \"Outside Temp\"\nFROM trips\nWHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo()\nORDER BY start_ts DESC;",
           "format": "table",
@@ -520,7 +521,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -602,13 +603,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT\n  start_ts AS \"time\",\n  consumption_kwh_per_100km AS \"Consumption\"\nFROM trips\nWHERE vin = '$vin' AND \n  consumption_kwh_per_100km IS NOT NULL\n  AND start_ts >= $__timeFrom()\n  AND start_ts <= $__timeTo()\nORDER BY start_ts ASC;",
           "format": "time_series",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on energy_remaining_kwh (trip consumption is derived from it), which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 7,
@@ -622,7 +624,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -697,7 +699,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT\n  start_ts AS \"time\",\n  distance_km AS \"Distance\"\nFROM trips\nWHERE vin = '$vin' AND \n  distance_km IS NOT NULL\n  AND start_ts >= $__timeFrom()\n  AND start_ts <= $__timeTo()\nORDER BY start_ts ASC;",
           "format": "time_series",
@@ -714,7 +716,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,

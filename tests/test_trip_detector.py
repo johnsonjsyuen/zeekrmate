@@ -1,8 +1,8 @@
 from datetime import datetime, timezone, timedelta
 
-from fordlogger.models import Vehicle, Position
-from fordlogger import db
-from fordlogger.trip_detector import finalize_trip
+from zeekrmate.models import Vehicle, Position
+from zeekrmate import db
+from zeekrmate.trip_detector import finalize_trip
 
 
 class TestTripDetector:
@@ -74,3 +74,55 @@ class TestTripDetector:
             ts=now + timedelta(seconds=30), vin="TEST001", speed_kmh=0.0))
         trip = finalize_trip(conn, "TEST001", now, now + timedelta(seconds=30))
         assert trip is None
+
+
+    def test_same_drive_is_not_recorded_twice(self, conn):
+        """E2E-5: a re-finalised (overlapping) drive does not duplicate the trip."""
+        start, end = self._setup_driving(conn)
+        assert finalize_trip(conn, "TEST001", start, end) is not None
+        assert finalize_trip(conn, "TEST001", start, end + timedelta(minutes=4)) is None
+        with conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM trips")
+            assert cur.fetchone()[0] == 1
+
+class TestTripRobustness:
+    def test_null_endpoints_use_nearest_non_null_values(self, conn):
+        db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
+        now = datetime.now(timezone.utc)
+        rows = [
+            Position(ts=now, vin="TEST001", state="driving"),
+            Position(ts=now + timedelta(minutes=5), vin="TEST001", odometer_km=1000.0,
+                     soc_pct=80.0, energy_remaining_kwh=40.0, state="driving"),
+            Position(ts=now + timedelta(minutes=10), vin="TEST001", odometer_km=1010.0,
+                     soc_pct=78.0, energy_remaining_kwh=38.0, state="driving"),
+            Position(ts=now + timedelta(minutes=15), vin="TEST001", state="parked"),
+        ]
+        for p in rows:
+            db.insert_position(conn, p)
+        trip = finalize_trip(conn, "TEST001", now, now + timedelta(minutes=15))
+        assert trip.distance_km == 10.0
+        assert trip.energy_used_kwh == 2.0
+        assert trip.consumption_kwh_per_100km == 20.0
+
+    def test_soc_rise_gives_null_not_negative(self, conn):
+        db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
+        now = datetime.now(timezone.utc)
+        db.insert_position(conn, Position(ts=now, vin="TEST001", odometer_km=10.0,
+                                          soc_pct=50.0, energy_remaining_kwh=30.0))
+        db.insert_position(conn, Position(ts=now + timedelta(minutes=5), vin="TEST001",
+                                          odometer_km=12.0, soc_pct=52.0,
+                                          energy_remaining_kwh=31.0))
+        trip = finalize_trip(conn, "TEST001", now, now + timedelta(minutes=5))
+        assert trip.soc_used_pct is None
+        assert trip.energy_used_kwh is None
+        assert trip.consumption_kwh_per_100km is None
+
+    def test_zero_energy_gives_zero_consumption(self, conn):
+        db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
+        now = datetime.now(timezone.utc)
+        db.insert_position(conn, Position(ts=now, vin="TEST001", odometer_km=10.0,
+                                          energy_remaining_kwh=30.0))
+        db.insert_position(conn, Position(ts=now + timedelta(minutes=5), vin="TEST001",
+                                          odometer_km=12.0, energy_remaining_kwh=30.0))
+        trip = finalize_trip(conn, "TEST001", now, now + timedelta(minutes=5))
+        assert trip.consumption_kwh_per_100km == 0.0

@@ -1,5 +1,28 @@
 # Codex Handoff — FordLogger → Multi-Provider EV Logger with Zeekr 7X Support
 
+> [!IMPORTANT]
+> **OVERRIDE (2026-10-19): the project is now Zeekr-only. This overrides everything below that conflicts.**
+> See [ADR 0002](docs/adr/0002-zeekr-only.md).
+>
+> - **Ford preservation directives no longer apply.** Ignore "Preserve Ford functionality", "while preserving the existing Ford implementation", Ford regression checks, and every `FordProvider`/token-file requirement. Ford code, tests and docs have been removed.
+> - **PR 2 provider columns are dropped.** Do not add `provider` / `provider_vehicle_id` to `vehicles`, `positions` or `trips`, and do not key journeys by provider. Keep only provider-neutral additions (observation time, snapshot key, generic `is_driving` / `is_charging` signals). `sql/schema.sql` is edited directly because no databases exist yet.
+> - **Naming:** user-facing names are now *zeekrmate*; the package, database and Compose service stay `fordlogger` until a separate rename (PR 10).
+> - **Never** document or automate obtaining the Zeekr app keys; users supply them as required by `zeekr_ev_api`.
+>
+> **Status as of 2026-10-19:**
+>
+> | Item | Status |
+> |---|---|
+> | PR 1: `VehicleProvider` boundary | Done (`97faaa0`) |
+> | Ford removal (replaces "preserve Ford") | Done (`02007f0`..`6b543b6`) |
+> | PR 2: persistence changes (Zeekr-only variant, no provider columns) | In progress: model signals done (`4669051`); schema pending |
+> | PR 3: Zeekr provider shell and capture tooling | In progress |
+> | PR 9: Grafana adaptation | Partly done: Ford strings, Vienna time zone/map centre and Puma thresholds removed; zeekrmate branding; unconfirmed fields flagged |
+> | Ops hardening (secrets from `.env`, no public DB port, read-only Grafana role, backup/restore) | Done on the ops track |
+> | PR 0 (`docs/upstream.md`), PR 4 to PR 8, PR 10 | Not done |
+>
+> Before PR 4 mapping work, the real-car capture checkpoint still applies: see `docs/first_real_test.md`.
+
 > **Document status (2026-08-29):** This is the source roadmap and historical
 > execution handoff. PR 1 is implemented at commit `97faaa0` and verified in
 > [the PR 1 implementation specification](docs/pr1-vehicle-provider-spec.md#implementation-evidence).

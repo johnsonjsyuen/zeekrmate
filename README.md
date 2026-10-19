@@ -1,331 +1,221 @@
-# FordLogger
+# zeekrmate
 
-Self-hosted vehicle data logger for Ford vehicles. Inspired by [TeslaLogger](https://github.com/bassmaster187/TeslaLogger).
+Self-hosted data logger for the **Zeekr 7X**, built for an owner in Australia.
 
-Continuously polls the FordConnect API, stores telemetry in PostgreSQL, detects trips and charge sessions automatically, and visualizes everything in Grafana dashboards.
+zeekrmate polls the Zeekr cloud API through the [`zeekr_ev_api`](https://github.com/Fryyyyy/zeekr_ev_api) library, stores the telemetry in PostgreSQL, detects trips and charge sessions, and shows everything in Grafana dashboards.
 
-## API: EU Data Act — not a reverse-engineered hack
+It is a modified fork of [FordLogger](https://github.com/lutzerb/fordlogger) by lutzerb (see [Attribution and licence](#attribution-and-licence)). Ford support has been removed; Zeekr is the only supported vehicle.
 
-FordLogger uses Ford's **official FordConnect Query API**, provided under the [EU Data Act](https://developer.ford.com/developer-eu). This is fundamentally different from tools that reverse-engineer the FordPass mobile app API:
+> **Status: not yet tested against a real car.** The logger, schema and dashboards run, but the mapping from Zeekr API fields to the database has not been confirmed with real 7X data. Follow [the first real test](docs/first_real_test.md) before relying on the numbers. Dashboard panels that depend on unconfirmed fields say so in their description (hover the panel's ⓘ icon).
 
-- **Official and supported** — Ford is legally required to provide this API under EU regulation
-- **Stable** — Won't break when Ford updates their mobile app
-- **EU customers only** — The API is currently available through Ford's EU developer portal. It may not work for vehicles registered outside the EU.
+> The internal Python package, database, database user and Docker service are still called `zeekrmate`. They will be renamed in a later, separate change. You will see that name in commands below.
 
-## Tested vehicles
+## What you get
 
-| Vehicle | GPS & odometer | SoC & range | Speed | Consumption (kWh/100km) | Outside temp | Battery temp | Charge power/current | Tire pressure | Door/lock status |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **Ford Puma Gen-E (2025)** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| **Ford Explorer (2024)** | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
-| **Ford Capri (2024)** | ✅ | ✅ | ❓ | ❓ | ❓ | ❓ | ❓ | ❓ | ✅ |
-
-The Explorer returns significantly fewer metrics from the FordConnect API than the Puma Gen-E. The Capri shares the same underlying platform as the Explorer, so the same limitations are expected — but not yet confirmed. If you have a Capri or any other model, please report what works for you (see [Contributing](#contributing)) — availability may also vary by firmware version or market region.
-
-It should also work with other FordConnect-enabled vehicles, including ICE (petrol/diesel) models, though the Charging, Consumption, and Battery Degradation dashboards would need adaptation for ICE.
-
-**If you have a different Ford model, I'd love to hear from you!** — see [Contributing](#contributing).
-
-## Features
-
-- **Adaptive polling** — 60s while driving/charging, 2min parked, 5min sleeping
-- **Vehicle state machine** — Automatically detects driving, charging, parked, and sleeping states
-- **Trip detection** — Records distance, consumption (kWh/100km), speeds, SoC used
-- **Charge session detection** — Records energy added, max/avg power, AC/DC classification
-- **7 Grafana dashboards** — Overview, Trips, Charging, Consumption, Battery Degradation, GPS Map, Timeline
-- **Full telemetry storage** — Raw JSON preserved for future-proofing
-- **Multi-vehicle support** — Multiple cars in one account, switchable via dashboard dropdown
-- **Docker Compose deployment** — One command to run everything
+- **Adaptive polling**: shorter intervals while driving or charging, longer while parked or asleep.
+- **Vehicle state machine**: driving, charging, parked and sleeping.
+- **Trip detection**: distance, duration, SoC used, speeds and (if the car reports energy) consumption in kWh/100 km.
+- **Charge session detection**: SoC added, duration, power and (if reported) energy added.
+- **8 Grafana dashboards**: Overview, Trips, Charging, Consumption, Battery Degradation, Map, Timeline and Raw Data.
+- **Raw payload storage**: the API response is kept in `positions.raw_json` so the mapping can be checked and improved later.
+- **Docker Compose deployment**: logger, PostgreSQL 16 and Grafana 11.
 
 ## Requirements
 
-FordLogger needs to run **24/7** to capture all trips and charge sessions (it polls the API, there are no push notifications). Minimal resources: ~256 MB RAM, any CPU, less than 1 GB disk (grows slowly with data).
+- A machine that runs **24/7** with Docker and Docker Compose v2.24 or later (a Raspberry Pi 4/5, a NAS, a home server or a small VPS). The logger polls; the car does not push data, so anything that happens while the logger is down is missed.
+- About 256 MB RAM and under 1 GB of disk to start (the database grows slowly).
+- A Zeekr account with access to the car. A dedicated logger account that the car is shared to is recommended, so the logger's sessions do not interfere with your phone app.
+- **The Zeekr app keys required by `zeekr_ev_api`.** The library needs several app-level keys in addition to your username and password. You must supply them yourself, as described by `zeekr_ev_api`. This project does not provide them or explain how to obtain them.
 
-**Recommended setups:**
+## Setup
 
-| Setup | Notes |
-|-------|-------|
-| **Raspberry Pi 4/5** | Sweet spot for most users. Low power (~5W), cheap, runs 24/7. Pi 3 may be tight on RAM with Grafana. |
-| **Home server / NAS** | Ideal if you already have one (Synology, Unraid, TrueNAS, or a plain Linux box with Docker). |
-| **Proxmox LXC/VM** | Clean option for homelab users. A lightweight LXC container with Docker is enough. |
-| **Cloud VPS** | Works but overkill for a single car. Cheapest Hetzner or Oracle free tier would do it. |
-
-**Operating system:** Developed and tested on **Linux** (Debian/Ubuntu). macOS and Windows should work via Docker Desktop / WSL2, but this is untested.
-
-## Prerequisites: FordConnect API Setup
-
-Before you can use FordLogger, you need API credentials from Ford's developer portal.
-
-### 1. Create a Ford Developer account
-
-Go to [https://developer.ford.com/developer-eu](https://developer.ford.com/developer-eu) and create an account. **You must use the same email address that you use in the FordPass app** — Ford links API access to your FordPass account. Fill out every field in the registration form completely and use only standard English characters (a–z, 0–9) — special characters and incomplete fields have been reported to cause errors.
-
-### 2. Create an application
-
-1. Log in to the developer portal and create a new application
-2. Set the **Redirect URI** to `http://localhost:8080/callback`
-3. Once created, copy the **Client ID** and **Client Secret**
-
-### 3. Wait for backend provisioning
-
-After creating your app, Ford's backend may need some time (minutes to hours) to fully provision your credentials. If authentication fails immediately after setup, wait a bit and try again.
-
-## Quick Start
-
-### 1. Clone and configure
+### 1. Clone
 
 ```bash
-git clone https://github.com/lutzerb/fordlogger.git
-cd fordlogger
+git clone https://github.com/johnsonjsyuen/zeekrmate.git
+cd zeekrmate
 cp config.example.json config.json
 ```
 
-Edit `config.json` and paste your **Client ID** and **Client Secret**:
+### 2. Create `.env`
 
-```json
-{
-  "client_id": "your-client-id-from-ford-developer-portal",
-  "client_secret": "your-client-secret-from-ford-developer-portal",
-  "redirect_uri": "http://localhost:8080/callback"
-}
-```
+All secrets live in a `.env` file next to `docker-compose.yml`. It is git-ignored; never commit it. Copy `.env.example` if present, then fill in every variable below.
 
-### 2. Authenticate
+| Variable | Required | Used by | Purpose |
+|---|---|---|---|
+| `POSTGRES_PASSWORD` | yes | db | Password of the `zeekrmate` database owner (used by the logger). |
+| `GRAFANA_DB_PASSWORD` | yes | db, grafana | Password of Grafana's read-only database role. |
+| `GRAFANA_DB_USER` | no (default `grafana_ro`) | db, grafana | Name of that read-only role. |
+| `GRAFANA_ADMIN_PASSWORD` | yes | grafana | Password of the Grafana `admin` user. |
+| `GRAFANA_BIND` | no (default `127.0.0.1`) | grafana | Address Grafana listens on. See [Security](#security). |
+| `ZEEKR_USERNAME` | yes | logger | Zeekr account login. |
+| `ZEEKR_PASSWORD` | yes | logger | Zeekr account password. |
+| `ZEEKR_COUNTRY_CODE` | no (default `AU`) | logger | Account country. |
+| `ZEEKR_HMAC_ACCESS_KEY`, `ZEEKR_HMAC_SECRET_KEY`, `ZEEKR_PASSWORD_PUBLIC_KEY`, `ZEEKR_PROD_SECRET`, `ZEEKR_VIN_KEY`, `ZEEKR_VIN_IV` | yes | logger | App keys required by `zeekr_ev_api` (supply your own). |
+| `ZEEKRMATE_STORE_RAW_JSON` | no (default `true`) | logger | Keep raw API payloads. Leave on until the mapping is confirmed. |
+| `ZEEKRMATE_GEOCODING` | no (default `true`) | logger | Look up trip and charge addresses with OpenStreetMap Nominatim. This sends coordinates to OSM; set `false` to keep them local. |
+| `APP_UID`, `APP_GID` | no (default `1000`) | logger (build) | User/group the logger container runs as. Must be able to write `./data`. |
 
-```bash
-docker compose run -p 8080:8080 fordlogger python -m fordlogger --auth
-```
+Generate strong, distinct passwords, for example with `openssl rand -base64 24`. Avoid `$` in values (Compose treats it as a variable), or wrap the value in single quotes in `.env`.
 
-This prints a URL. Open it in your browser, log in with your **FordPass credentials**, and authorize the app. Ford redirects back to `localhost:8080/callback`, where FordLogger captures the auth code and exchanges it for tokens (saved to `tokens.json`).
+`docker compose` refuses to start if a required password is missing, and the logger refuses to start while `POSTGRES_PASSWORD` is still a `change-me...` placeholder from `.env.example`.
 
-**Running on a remote server?** The OAuth callback must reach the FordLogger container on port 8080. If your browser is on a different machine than Docker, set up an SSH tunnel:
+Each container only receives the variables it needs: the logger gets the `ZEEKR_*` values and the database password, never the Grafana passwords.
 
-```bash
-# On your local machine — forwards localhost:8080 to the server
-ssh -L 8080:localhost:8080 your-server
-```
+**Database password for the logger:** Docker passes `POSTGRES_PASSWORD` to the logger as `ZEEKRMATE_DB_PASSWORD`, so you only set it once in `.env`. (Outside Docker, set `ZEEKRMATE_DB_PASSWORD` or `db_password` in `config.json`.)
 
-Then open the auth URL in your local browser. The callback will go to your local `localhost:8080`, which the tunnel forwards to the server where FordLogger is listening.
+The database and Grafana passwords are applied **only when their volumes are first created**. To change them later, see [Changing passwords](#changing-passwords).
 
-### 3. Run
+### 3. First real test
+
+Before running the logger unattended, do a one-off check that login works and that the data looks right. Follow [docs/first_real_test.md](docs/first_real_test.md).
+
+### 4. Run
 
 ```bash
 docker compose up -d
+docker compose logs -f zeekrmate
 ```
 
 This starts:
-- **fordlogger** — Polling daemon with adaptive intervals
-- **PostgreSQL 16** — Telemetry database
-- **Grafana 11** — Dashboards at [http://localhost:3000](http://localhost:3000) (login: `admin` / `fordlogger`)
 
-### 4. Verify
-
-```bash
-# Single poll (test without daemon)
-docker compose run fordlogger python -m fordlogger --once
-
-# Check logs
-docker compose logs -f fordlogger
-```
+- **zeekrmate**: the polling logger.
+- **db**: PostgreSQL 16. It is not published on any host port.
+- **grafana**: Grafana 11 at <http://localhost:3000> (user `admin`, password `GRAFANA_ADMIN_PASSWORD`).
 
 ## Dashboards
 
-| Dashboard | Description |
-|-----------|-------------|
-| **Overview** | Current SoC, range, odometer, plug status, location map |
-| **Trips** | Trip history with distance, consumption, duration |
-| **Charging** | Charge sessions with energy added, power curves |
-| **Consumption** | kWh/100km per trip, vs temperature, vs speed, monthly trends |
-| **Degradation** | Battery capacity trend, SoC vs range scatter |
-| **Map** | GPS tracks with per-trip coloring and start/end markers |
-| **Timeline** | Vehicle state history (driving/charging/parked/sleeping) |
-| **Raw Data** | Browse all telemetry, trips, charges, and raw API responses |
+All dashboards are in the **zeekrmate** folder and have a **Vehicle** drop-down. Times are shown in the dashboard's time zone (your browser's by default).
 
-**Overview** — Live vehicle status at a glance: current SoC, range, odometer, plug/charge status, vehicle state, and battery temperature. Time series charts show SoC and range over time, battery vs outside temperature, and the car's last known position on a map.
+| Dashboard | Shows |
+|---|---|
+| **Overview** | Current SoC, range, odometer, plugged-in and charging status, vehicle state, battery temperature, last position |
+| **Trips** | Trip list with distance, duration, SoC used and consumption |
+| **Charging** | Charge sessions, energy added, power curve, SoC while charging |
+| **Consumption** | kWh/100 km per trip, against temperature and speed, monthly trend |
+| **Battery Degradation** | Reported capacity and estimated full-charge range over time. These are **estimates**, not a measured state of health |
+| **Map** | GPS route per trip with start and end markers |
+| **Timeline** | State history (driving, charging, parked, sleeping) with SoC and speed |
+| **Raw Data** | Every stored position, trip, charge session and state change, including raw API payloads |
 
-![Overview Dashboard](docs/screenshot_overview.png)
+**Battery Degradation setup:** the dashboard has two text boxes, *Rated capacity (kWh)* and *Rated range (km)*. They are empty by default. Fill them in from the published spec of your 7X variant to see capacity and range as a percentage of rated. To keep the values, save the dashboard.
 
-**Trips** — Every drive logged automatically with distance, duration, SoC used, energy consumption (kWh/100km), average and max speed, and outside temperature. The consumption and distance charts show trends over time.
+**Fields not yet confirmed for Zeekr** (panels show *No data* if the car does not report them): battery and outside temperature, energy remaining (so trip consumption and charge energy), battery capacity, charge power, plug status values, and speed. Unconfirmed energy and temperature fields are left empty rather than estimated, and Plug Status shows the raw code marked *provisional*. The [first real test](docs/first_real_test.md) checks these.
 
-![Trips Dashboard](docs/screenshot_trips.png)
+![Overview dashboard (screenshot from upstream FordLogger)](docs/screenshot_overview.png)
 
-## Architecture
+## Security
 
-```
-fordlogger/
-├── fordlogger/              # Python package
-│   ├── main.py              # CLI entry point (--auth, --once, daemon)
-│   ├── config.py            # Config loading, polling intervals
-│   ├── auth.py              # OAuth2 flow
-│   ├── api.py               # FordConnect API client + telemetry parser
-│   ├── db.py                # PostgreSQL operations
-│   ├── models.py            # Dataclasses (Vehicle, Position, Trip, ChargeSession)
-│   ├── state_machine.py     # Vehicle state transitions
-│   ├── poller.py            # Adaptive polling loop
-│   ├── trip_detector.py     # Trip boundary detection & summarization
-│   └── charge_detector.py   # Charge session detection & summarization
-├── sql/schema.sql           # PostgreSQL schema
-├── grafana/                 # Dashboard JSON + provisioning
-├── tests/                   # 77 tests (unit + live API)
-├── docker-compose.yml
-├── Dockerfile
-└── config.example.json
-```
+The database holds a detailed history of where the car has been, including your home. The default setup is locked down:
 
-### State Machine
+- **PostgreSQL is not published** on the host. Only the logger and Grafana reach it, over the Compose network. To use `psql` from the host, uncomment the `127.0.0.1:5432:5432` line in `docker-compose.yml` (loopback only).
+- **Grafana listens on `127.0.0.1` only.** To use it from other devices on your network, set `GRAFANA_BIND=0.0.0.0` in `.env`. Do not expose port 3000 to the internet; use a VPN (for example Tailscale or WireGuard) instead.
+- **Grafana reads the database as a SELECT-only role** (`GRAFANA_DB_USER`). It is created by `sql/init-roles/20-grafana-readonly.sh` when the database is first initialised.
+- **No default passwords.** Every password comes from `.env`; the logger rejects the `change-me` placeholders.
+- **Least privilege per container.** The logger receives only `ZEEKR_*`, its `ZEEKRMATE_*` settings and the database password (no `env_file`). Grafana receives only its own passwords. The logger container runs as a non-root user (`APP_UID`/`APP_GID`, default 1000).
+- **The Grafana role cannot** write, create temporary objects, take advisory locks (so it cannot block the logger's start-up) or connect to other databases.
+- **The logger connects as the database owner**, which the `postgres` image makes a superuser. A separate non-superuser logger role is not set up yet, because the existing tables would have to change owner; treat the logger container as trusted with the whole database.
+- **Logs never contain a full VIN**: every log line is passed through a VIN mask (last 4 characters), including database error details.
+- **Backups contain the same data.** Keep them private.
 
-```
-                ┌──────────┐
-        ┌──────►│ SLEEPING │◄──────┐
-        │       └────┬─────┘       │
-        │            │ activity    │
-  no change for      │ detected   │
-  30 min             │             │
-        │       ┌────▼─────┐       │
-        ├───────┤  PARKED  ├───────┤
-        │       └──┬────┬──┘       │
-        │   speed>0│    │plug+     │
-        │          │    │charging  │
-        │    ┌─────▼┐ ┌▼────────┐ │
-        │    │DRIVING│ │CHARGING │ │
-        │    └─────┬┘ └┬────────┘ │
-        │   speed=0│   │complete/ │
-        │          │   │unplug    │
-        └──────────┘   └──────────┘
+### Changing passwords
+
+- **Grafana read-only role:** change `GRAFANA_DB_PASSWORD` in `.env`, then:
+  ```bash
+  docker compose up -d db
+  docker compose exec db bash /docker-entrypoint-initdb.d/20-grafana-readonly.sh
+  docker compose up -d --force-recreate grafana
+  ```
+- **Database owner:** run `docker compose exec db psql -U zeekrmate -d zeekrmate -c "\password zeekrmate"`, then update `POSTGRES_PASSWORD` in `.env` and restart the logger.
+- **Grafana admin:** change it in the Grafana UI (profile, *Change password*). Changing `GRAFANA_ADMIN_PASSWORD` later has no effect on an existing Grafana volume.
+
+## Backup and restore
+
+```bash
+./backup.sh                    # writes ./backups/zeekrmate_<UTC time>.dump
+./backup.sh /path/to/backups   # or choose the directory
 ```
 
-### Database Tables
+`backup.sh` runs `pg_dump` inside the `db` service with `docker compose exec`, so it works whatever your Compose project is called. It stops with an error, and leaves no file behind, if the database is not running, the dump fails or the result is empty or unreadable. Schedule it with cron, for example daily:
 
-- **`vehicles`** — One row per VIN
-- **`positions`** — High-frequency telemetry snapshots (every poll)
-- **`trips`** — Summarized drives (distance, consumption, speeds)
-- **`charge_sessions`** — Summarized charges (energy, power, AC/DC)
-- **`states`** — State transition log
+```cron
+15 3 * * * cd /path/to/zeekrmate && ./backup.sh >> backups/backup.log 2>&1
+```
 
-## Local Development
+To restore:
+
+```bash
+./restore.sh backups/zeekrmate_20261019T031500Z.dump
+```
+
+`restore.sh` asks for confirmation, stops the logger and Grafana, **replaces** the database contents with the backup, re-applies Grafana's read-only grants and starts the services again. The restore runs in a single transaction and stops at the first error, so a failed restore leaves the database unchanged. Plain SQL dumps (`.sql`, `.sql.gz`) are also accepted, but only into an empty database.
+
+The data lives in the Docker volume `pgdata`. It survives `docker compose down` but **not** `docker compose down -v`.
+
+## How it works
+
+```
+zeekrmate/
+├── zeekrmate/                 # Python package (rename pending)
+│   ├── main.py                 # CLI entry point (--once, --backfill-addresses, daemon)
+│   ├── config.py               # config.json + environment overrides, polling intervals
+│   ├── providers/              # VehicleProvider boundary and the Zeekr provider
+│   ├── poller.py               # Adaptive polling loop
+│   ├── state_machine.py        # Vehicle state transitions
+│   ├── trip_detector.py        # Trip summarisation
+│   ├── charge_detector.py      # Charge session summarisation
+│   ├── geocoder.py             # Optional reverse geocoding (Nominatim)
+│   ├── db.py, models.py        # PostgreSQL access and data classes
+├── sql/schema.sql              # Database schema
+├── sql/init-roles/             # First-start database roles (Grafana read-only)
+├── grafana/                    # Dashboards and provisioning
+├── backup.sh, restore.sh
+└── docs/                       # Design records and guides
+```
+
+All Zeekr-specific code stays behind the provider boundary in `zeekrmate/providers/` ([ADR 0001](docs/adr/0001-vehicle-provider-boundary.md), [ADR 0002](docs/adr/0002-zeekr-only.md)). The poller, state machine, detectors, schema and dashboards only see generic fields.
+
+### Database tables
+
+- **`vehicles`**: one row per VIN.
+- **`positions`**: one telemetry snapshot per poll, including `state` (`driving`, `charging`, `parked` or `sleeping`) and the raw payload.
+- **`trips`**: summarised drives.
+- **`charge_sessions`**: summarised charges.
+- **`states`**: state transition log.
+
+## Local development
 
 ```bash
 python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-pip install pytest
-
-# Start PostgreSQL
-docker compose up -d db
-
-# Run with local DB
-FORDLOGGER_DB_HOST=localhost python3 -m fordlogger --once
-
-# Run tests
-FORDLOGGER_DB_HOST=localhost python3 -m pytest tests/ --ignore=tests/test_live_api.py -v
+pip install -r requirements.txt pytest
 ```
 
-## Configuration
-
-| Key | Default | Description |
-|-----|---------|-------------|
-| `client_id` | — | FordConnect OAuth client ID |
-| `client_secret` | — | FordConnect OAuth client secret |
-| `redirect_uri` | `http://localhost:8080/callback` | OAuth callback URL |
-| `db_host` | `db` | PostgreSQL host (`db` for Docker, `localhost` for local) |
-| `db_port` | `5432` | PostgreSQL port |
-| `db_name` | `fordlogger` | Database name |
-| `db_user` | `fordlogger` | Database user |
-| `db_password` | `fordlogger` | Database password |
-| `sleep_after_minutes` | `30` | Minutes of inactivity before entering sleep state |
-
-Environment overrides: `FORDLOGGER_DB_HOST`, `FORDLOGGER_DB_PORT`
-
-## Backup & Restore
+Run the tests against any PostgreSQL 16 you control (they use a separate test database):
 
 ```bash
-# Backup
-./backup.sh                     # Creates fordlogger_backup_YYYYMMDD_HHMMSS.sql.gz
-./backup.sh /path/to/backups    # Specify output directory
-
-# Restore
-gunzip -c fordlogger_backup_*.sql.gz | docker exec -i fordlogger-db-1 psql -U fordlogger fordlogger
+ZEEKRMATE_DB_HOST=localhost ZEEKRMATE_DB_PORT=5432 python -m pytest tests/
 ```
 
-The PostgreSQL data lives in a Docker named volume (`pgdata`). It survives `docker compose down` but **not** `docker compose down -v`. Back up regularly.
+The Compose database is not published on the host. For local development either run your own PostgreSQL or temporarily enable the loopback port mapping described in [Security](#security). See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## FordConnect API
+## Known limitations
 
-Uses Ford's FordConnect Query API (`fcon-query/v1`), the same API used by [evcc](https://github.com/evcc-io/evcc).
+- **Driving is inferred** from odometer (+0.1 km) or position (> 200 m) changes between consecutive fresh snapshots, because no Zeekr driving or speed field is confirmed yet. Trips therefore depend on how often the API refreshes its snapshot while driving; a stop of about two polls splits a trip. A gap of more than `drive_gap_minutes` (default 30) without fresh data ends a trip at the last reading.
+- **Short trips can be missed** if they start and end between two polls.
+- **Max speed is a sampled value**, so it is usually lower than the true maximum.
+- **AC/DC classification** of charge sessions is a power-threshold guess: a peak above `dc_threshold_kw` (default 22) + 5% is DC. A DC session that never exceeds about 23 kW is labelled AC.
+- **Battery degradation** panels are estimates derived from reported capacity or displayed range, not a measured state of health.
 
-- Auth: `fcon-public/v1/auth/init` (OAuth2 authorization code flow)
-- Endpoints: `/garage`, `/telemetry`
-- Rate limits: ~1 request per minute (adaptive polling respects this)
-- Access tokens expire in 20 minutes (auto-refreshed)
-- Refresh tokens expire in 90 days
+See [IDEAS.md](IDEAS.md) for planned work.
 
-## Known Issues
+## Attribution and licence
 
-- **Max speed per trip is unreliable** — The Ford API updates the speed value infrequently (~every 60s). Since FordLogger only sees snapshots, it often misses the actual top speed. The recorded max speed tends to be too low, especially on short trips. Longer highway drives may be more accurate, but this hasn't been verified yet.
-- **Short trips may be missed** — If a trip starts and ends between two polling cycles (e.g. moving the car in a parking lot), it won't be recorded. The parked polling interval is 2 minutes.
-- **Distance and consumption rounding** — Trip distance is calculated from odometer readings which Ford rounds to whole kilometers. Short trips may show 0 km distance and no consumption.
+zeekrmate is derived from **[FordLogger](https://github.com/lutzerb/fordlogger) by lutzerb**, licensed under the GNU Affero General Public License v3.0. The upstream git history is kept in this repository.
 
-## Troubleshooting
+**Modified in 2026:** Ford support removed and Zeekr support added. See [NOTICE](NOTICE) for details.
 
-**429 Too Many Requests**
-Ford's API allows ~1 request per minute. FordLogger retries automatically with backoff (30s, 60s, 120s). If you see persistent 429 errors after a fresh start, wait a few minutes — it resolves itself.
+zeekrmate is distributed under the same licence, [AGPL-3.0](LICENSE). You may use, modify and self-host it. If you run a modified version that other people interact with over a network, you must offer them its source code under the same licence.
 
-**OAuth callback not working (port 8080 blocked or on a remote server)**
-The auth flow opens a local HTTP server on port 8080 and waits for Ford to redirect your browser to `localhost:8080/callback`. If this does not work (e.g. Docker is on a remote server, or port 8080 is blocked), there is a manual fallback built in:
+[`zeekr_ev_api`](https://github.com/Fryyyyy/zeekr_ev_api) is a separate project under the MIT licence, used as a dependency.
 
-1. Run the auth command as usual
-2. Open the printed URL in your browser and complete the login
-3. After authorizing, Ford will redirect to `localhost:8080/callback?code=...` — your browser will likely show an error ("connection refused") but that's fine
-4. Copy the **full URL** from your browser's address bar and paste it into the terminal when prompted
-
-Alternatively, set up an SSH tunnel so the callback is forwarded automatically:
-```bash
-# Run this on your local machine before starting auth
-ssh -L 8080:localhost:8080 your-server
-```
-
-**Authentication fails immediately after creating API credentials**
-Ford's backend may need time to provision new app credentials. Wait 15-30 minutes and try again.
-
-**No new data points appearing**
-When the car is parked with ignition off, Ford's API returns stale data with the same timestamp. FordLogger skips duplicate data, so no new rows are inserted until the car wakes up (door open, ignition on, charging starts). Check `docker compose logs -f fordlogger` to verify the poller is running.
-
-**Refresh token expired (90 days)**
-Re-run the auth flow: `docker compose run -p 8080:8080 fordlogger python -m fordlogger --auth`
-
-**Database connection lost**
-FordLogger automatically reconnects to PostgreSQL if the connection drops. Check `docker compose logs fordlogger` for reconnection messages.
-
-**Some trip fields are empty (consumption, avg speed, outside temp)**
-These values are calculated from metrics that not all Ford vehicles report. To check what your vehicle actually sends, use the diagnostic script:
-
-```bash
-# From the fordlogger directory (with venv active):
-python scripts/dump_telemetry.py --pretty | less
-
-# Or using Docker (no venv needed):
-docker compose run fordlogger python scripts/dump_telemetry.py --pretty
-```
-
-This dumps the full raw API response. Look for `xevBatteryCapacity`, `xevBatteryEnergyRemaining`, `speed`, and `ambientTemp` in the `metrics` array — if they're absent or always `null`, your vehicle doesn't report those values and the corresponding dashboard panels will show no data.
-
-## Roadmap
-
-- **Support for more vehicles** — ICE cars (petrol/diesel), other Ford EV models. ICE support would need adapted dashboards (no charging/battery views) and possibly different telemetry fields.
-- **More dashboards** — Tire pressure history, door/lock status, detailed trip replay
-- **Data export via MQTT** — Publish telemetry to an MQTT broker for integration with Home Assistant, Node-RED, or other automation platforms
-- **Charge cost tracking** — Electricity price per kWh, cost per session, monthly totals
-- **Fleet comparison** — Anonymous stats aggregation to compare your car against other FordLogger users
-
-See [IDEAS.md](IDEAS.md) for the full list.
-
-## Contributing
-
-Contributions are very welcome! Whether it's bug reports, new vehicle test results, dashboard improvements, or code contributions — all help is appreciated.
-
-- **Testing with your vehicle** — If you have any Ford model (EV or ICE), running FordLogger and reporting what works/doesn't work is extremely valuable
-- **Bug reports** — Open an issue with logs (`docker compose logs fordlogger`) and your vehicle model
-- **Pull requests** — See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup
-
-## License
-
-[AGPL-3.0](LICENSE) — You can use, modify, and self-host freely. If you modify and deploy it as a network service, you must publish your source code under the same license.
+zeekrmate is not affiliated with or endorsed by Zeekr or Ford.

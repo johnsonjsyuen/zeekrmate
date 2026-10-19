@@ -1,14 +1,20 @@
 # Secrets & tokens
 config.json
-tokens.json
+tokens*.json
+*.session.json
+data/
+captures/
+backups/
 secret.json
 *.pem
 .env
+.env.*
+!.env.example
+zeekr_session.json
+*.dump
+*-sanitised/
 
 # Database
-ford_tracker.db
-ford_tracker.db-wal
-ford_tracker.db-shm
 
 # Python
 venv/
@@ -33,3 +39,6 @@ archive/
 .worktrees/
 cloudflared.deb
 *.old
+
+# Zeekr captures (raw API dumps contain personal data)
+captures/

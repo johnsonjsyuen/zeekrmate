@@ -4,59 +4,20 @@ import inspect
 
 import pytest
 
-from fordlogger.poller import Poller
-import fordlogger.poller as poller_module
-from fordlogger.config import INTERVALS
-from fordlogger.models import Vehicle, Position
-from fordlogger.state_machine import VehicleState
-from fordlogger import db
+from zeekrmate.poller import Poller
+import zeekrmate.poller as poller_module
+from zeekrmate.config import INTERVALS
+from zeekrmate.models import Vehicle, Position
+from zeekrmate.state_machine import VehicleState
+from zeekrmate import db
 
-
-class FakeProvider:
-    def __init__(
-        self,
-        *,
-        name="fake",
-        vehicles=None,
-        positions=None,
-        vehicle_error=None,
-        telemetry_error=None,
-    ):
-        self._name = name
-        self.vehicles = list(vehicles or [])
-        self.positions = list(positions or [])
-        self.vehicle_error = vehicle_error
-        self.telemetry_error = telemetry_error
-        self.vehicle_calls = 0
-        self.telemetry_calls = 0
-
-    @property
-    def name(self):
-        return self._name
-
-    def get_vehicles(self):
-        self.vehicle_calls += 1
-        if self.vehicle_error:
-            raise self.vehicle_error
-        return self.vehicles
-
-    def get_telemetry(self):
-        self.telemetry_calls += 1
-        if self.telemetry_error:
-            raise self.telemetry_error
-        return self.positions
-
-
-class BrokenNameProvider(FakeProvider):
-    @property
-    def name(self):
-        raise RuntimeError("provider name unavailable")
+from tests.fakes import FakeProvider, BrokenNameProvider
 
 
 class TestPoller:
     def _make_poller(self, conn, cfg):
         provider = FakeProvider(
-            vehicles=[Vehicle(vin="TEST001", make="Ford", model="Puma")]
+            vehicles=[Vehicle(vin="TEST001", make="Zeekr", model="7X")]
         )
         poller = Poller(cfg, conn, provider)
         return poller, provider
@@ -71,9 +32,7 @@ class TestPoller:
             speed_kmh=0.0,
             lat=47.81,
             lon=16.22,
-            plug_status="DISCONNECTED",
-            charge_status="NOT_READY",
-            ignition_status="OFF",
+            charge_power_kw=0.0,
         )
         defaults.update(kwargs)
         return Position(**defaults)
@@ -94,12 +53,12 @@ class TestPoller:
         with conn.cursor() as cur:
             cur.execute("SELECT make, model FROM vehicles WHERE vin = 'TEST001'")
             row = cur.fetchone()
-        assert row == ("Ford", "Puma")
+        assert row == ("Zeekr", "7X")
 
     def test_state_transition_logged(self, conn, cfg):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
         poller, provider = self._make_poller(conn, cfg)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) - timedelta(hours=2)
 
         # First: parked
         provider.positions = [self._make_position(ts=now)]
@@ -119,7 +78,7 @@ class TestPoller:
     def test_trip_finalized_on_stop(self, conn, cfg):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
         poller, provider = self._make_poller(conn, cfg)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) - timedelta(hours=2)
 
         # Drive start
         provider.positions = [self._make_position(
@@ -141,6 +100,13 @@ class TestPoller:
             soc_pct=74.0, energy_remaining_kwh=32.0,
         )]
         poller.poll_once()
+        assert poller.machines["TEST001"].state == VehicleState.DRIVING  # debounce
+        provider.positions = [self._make_position(
+            ts=now + timedelta(minutes=12), speed_kmh=0.0, odometer_km=1020.0,
+            soc_pct=74.0, energy_remaining_kwh=32.0,
+        )]
+        poller.poll_once()
+        assert poller.machines["TEST001"].state == VehicleState.PARKED
 
         # Check trip was created
         with conn.cursor() as cur:
@@ -154,28 +120,30 @@ class TestPoller:
     def test_charge_session_finalized(self, conn, cfg):
         db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
         poller, provider = self._make_poller(conn, cfg)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc) - timedelta(hours=2)
 
         # Charge start
         provider.positions = [self._make_position(
-            ts=now, charge_status="ChargingAC", plug_status="CONNECTED",
-            charge_power_kw=7.4, soc_pct=20.0, energy_remaining_kwh=10.0,
+            ts=now, charge_power_kw=7.4, soc_pct=20.0, energy_remaining_kwh=10.0,
         )]
         poller.poll_once()
         assert poller.machines["TEST001"].state == VehicleState.CHARGING
 
         # Mid charge
         provider.positions = [self._make_position(
-            ts=now + timedelta(minutes=30), charge_status="ChargingAC",
-            plug_status="CONNECTED", charge_power_kw=7.4, soc_pct=50.0,
+            ts=now + timedelta(minutes=30), charge_power_kw=7.4, soc_pct=50.0,
             energy_remaining_kwh=24.0,
         )]
         poller.poll_once()
 
         # Charge done (parked)
         provider.positions = [self._make_position(
-            ts=now + timedelta(minutes=60), charge_status="NOT_READY",
-            plug_status="DISCONNECTED", charge_power_kw=0.0, soc_pct=80.0,
+            ts=now + timedelta(minutes=60), charge_power_kw=0.0, soc_pct=80.0,
+            energy_remaining_kwh=37.0,
+        )]
+        poller.poll_once()
+        provider.positions = [self._make_position(
+            ts=now + timedelta(minutes=62), charge_power_kw=0.0, soc_pct=80.0,
             energy_remaining_kwh=37.0,
         )]
         poller.poll_once()
@@ -293,16 +261,16 @@ def test_poller_has_no_ford_api_or_legacy_api_dependencies():
     forbidden = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
-            if any(alias.name == "fordlogger.api" for alias in node.names):
-                forbidden.append("fordlogger.api import")
+            if any(alias.name == "zeekrmate.api" for alias in node.names):
+                forbidden.append("zeekrmate.api import")
         elif isinstance(node, ast.ImportFrom):
             module = node.module or ""
-            if module in {"api", "fordlogger.api"}:
+            if module in {"api", "zeekrmate.api"}:
                 forbidden.append(f"{module} import")
-            elif module in {"", "fordlogger"} and any(
+            elif module in {"", "zeekrmate"} and any(
                 alias.name == "api" for alias in node.names
             ):
-                forbidden.append("fordlogger.api import")
+                forbidden.append("zeekrmate.api import")
             if any(alias.name == "FordAPI" for alias in node.names):
                 forbidden.append("FordAPI import")
         elif isinstance(node, ast.Name) and node.id == "FordAPI":

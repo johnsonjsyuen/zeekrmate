@@ -7,13 +7,17 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .env
-.env.example
+.env.*
+**/zeekr_session.json
+**/*.dump
+backups/
+*-sanitised/
 config.json
-tokens.json
+tokens*.json
+*.session.json
+data/
 secret.json
 *.pem
-ford_tracker.py
-ford_tracker.db*
 archive/
 .DS_Store
 .vscode/
@@ -26,3 +30,4 @@ archive/
 LICENSE
 cloudflared.deb
 backup.sh
+captures/

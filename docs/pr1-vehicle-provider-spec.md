@@ -3,6 +3,7 @@
 - Status: Implemented and verified on 2026-08-29
 - Source baseline: `ff1ffb758d056b4d8bd96a35364877939bdaf442`
 - Scope: PR 1 only; no Zeekr implementation
+- Historical: Ford support was removed on 2026-10-19 ([ADR 0002](adr/0002-zeekr-only.md)). The Ford adapter and token rules described here no longer exist.
 
 ## Objective
 

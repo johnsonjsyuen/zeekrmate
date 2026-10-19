@@ -1,13 +1,13 @@
 {
-  "uid": "fordlogger-overview",
+  "uid": "zeekrmate-overview",
   "title": "Overview",
-  "description": "FordLogger vehicle telemetry overview",
+  "description": "zeekrmate vehicle telemetry overview",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "schemaVersion": 39,
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-24h",
@@ -29,7 +29,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -84,7 +84,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", soc_pct FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -104,7 +104,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -157,7 +157,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", range_km FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -177,7 +177,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -219,7 +219,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", odometer_km FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -239,7 +239,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -259,17 +259,32 @@
             {
               "type": "value",
               "options": {
-                "0": {
-                  "text": "Disconnected",
-                  "color": "text"
-                },
-                "1": {
-                  "text": "Connected",
+                "Plugged in (charging)": {
+                  "text": "Plugged in (charging)",
                   "color": "green"
+                },
+                "Plugged in": {
+                  "text": "Plugged in",
+                  "color": "green"
+                },
+                "Not plugged in": {
+                  "text": "Not plugged in",
+                  "color": "text"
+                }
+              }
+            },
+            {
+              "type": "special",
+              "options": {
+                "match": "null",
+                "result": {
+                  "text": "Unknown",
+                  "color": "text"
                 }
               }
             }
-          ]
+          ],
+          "noValue": "Unknown"
         },
         "overrides": []
       },
@@ -277,9 +292,9 @@
         "reduceOptions": {
           "values": false,
           "calcs": [
-            "lastNotNull"
+            "last"
           ],
-          "fields": ""
+          "fields": "/^plug$/"
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -293,13 +308,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
-          "rawSql": "SELECT ts AS \"time\", CASE WHEN plug_status IN ('CONNECTED','Connected') THEN 1 ELSE 0 END AS plug FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
+          "rawSql": "SELECT ts AS \"time\",\n  CASE\n    WHEN state = 'charging' THEN 'Plugged in (charging)'\n    WHEN lower(plug_status) IN ('connected', 'plugged_in') THEN 'Plugged in'\n    WHEN lower(plug_status) IN ('disconnected', 'unplugged') THEN 'Not plugged in'\n    WHEN plug_status IS NULL OR plug_status = '' THEN NULL\n    ELSE 'Code ' || plug_status || ' (provisional)'\n  END AS plug\nFROM positions WHERE vin = '$vin'\nORDER BY ts DESC, id DESC LIMIT 1;",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Plugged in while the logger's state is charging. Otherwise shows the raw plug code the car reports (Zeekr statusOfChargerConnection), marked provisional: its meaning is not yet confirmed from a real Zeekr 7X capture. Canonical 'connected'/'disconnected' values are translated. Unknown if the car does not report it."
     },
     {
       "id": 5,
@@ -313,7 +329,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -344,10 +360,6 @@
                 "1": {
                   "text": "Charging",
                   "color": "green"
-                },
-                "2": {
-                  "text": "Complete",
-                  "color": "blue"
                 }
               }
             }
@@ -375,13 +387,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
-          "rawSql": "SELECT ts AS \"time\", CASE WHEN charge_status IN ('IN_PROGRESS','ChargingAC','ChargingDC','CHARGING','Charging') THEN 1 WHEN charge_status IN ('COMPLETE','Complete') THEN 2 ELSE 0 END AS charge FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
+          "rawSql": "SELECT ts AS \"time\", CASE WHEN state = 'charging' THEN 1 ELSE 0 END AS charge FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Derived from positions.state (driving/charging/parked/sleeping), set by the logger's state machine."
     },
     {
       "id": 6,
@@ -395,7 +408,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -469,13 +482,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
-          "rawSql": "SELECT ts AS \"time\", CASE state WHEN 'driving' THEN 1 WHEN 'charging' THEN 2 WHEN 'sleeping' THEN 3 ELSE 0 END AS vehicle_state FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
+          "rawSql": "SELECT time, CASE state WHEN 'driving' THEN 1 WHEN 'charging' THEN 2 WHEN 'sleeping' THEN 3 ELSE 0 END AS vehicle_state\nFROM (\n  (SELECT ts AS time, state, 1 AS src FROM states WHERE vin = '$vin' ORDER BY ts DESC, id DESC LIMIT 1)\n  UNION ALL\n  (SELECT ts AS time, state, 0 AS src FROM positions WHERE vin = '$vin' ORDER BY ts DESC, id DESC LIMIT 1)\n) latest\nORDER BY time DESC, src DESC LIMIT 1;",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Latest of the states table and the latest position. State changes without a new position (falling asleep, a drive ended because no fresh data arrived) are only in the states table."
     },
     {
       "id": 7,
@@ -489,7 +503,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -542,13 +556,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", bat_temp_c FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on bat_temp_c, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 12,
@@ -562,7 +577,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -603,7 +618,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT ts AS \"time\", 1 AS val FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
@@ -623,7 +638,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -693,7 +708,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "time_series",
           "rawSql": "SELECT\n  ts AS \"time\",\n  soc_pct AS \"SoC %\"\nFROM positions\nWHERE vin = '$vin' AND  $__timeFilter(ts)\nORDER BY ts;",
@@ -713,7 +728,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -782,7 +797,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "time_series",
           "rawSql": "SELECT\n  ts AS \"time\",\n  range_km AS \"Range\"\nFROM positions\nWHERE vin = '$vin' AND  $__timeFilter(ts)\nORDER BY ts;",
@@ -802,7 +817,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -886,13 +901,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "time_series",
           "rawSql": "SELECT\n  ts AS \"time\",\n  bat_temp_c AS \"Battery\",\n  outside_temp_c AS \"Outside\"\nFROM positions\nWHERE vin = '$vin' AND  $__timeFilter(ts)\nORDER BY ts;",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on bat_temp_c and outside_temp_c, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 11,
@@ -906,7 +922,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -998,7 +1014,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "format": "table",
           "rawSql": "SELECT\n  ts AS \"time\",\n  lat AS \"latitude\",\n  lon AS \"longitude\",\n  soc_pct AS \"SoC %\",\n  state AS \"State\"\nFROM positions\nWHERE vin = '$vin' AND  lat IS NOT NULL AND lon IS NOT NULL\nORDER BY ts DESC\nLIMIT 1;",
@@ -1015,7 +1031,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,
@@ -1028,9 +1044,9 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
-        "query": "SELECT COALESCE(end_address, start_address, 'Unknown') FROM trips ORDER BY end_ts DESC LIMIT 1",
+        "query": "SELECT COALESCE(end_address, start_address, 'Unknown') FROM trips WHERE vin = '$vin' ORDER BY end_ts DESC LIMIT 1",
         "refresh": 2,
         "hide": 2
       }

@@ -1,12 +1,12 @@
 {
-  "uid": "fordlogger-consumption",
+  "uid": "zeekrmate-consumption",
   "title": "Consumption",
-  "description": "Energy consumption analysis per trip",
+  "description": "zeekrmate energy consumption per trip. Consumption needs energy_remaining_kwh, which is not yet confirmed from Zeekr captures.",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-90d",
@@ -21,7 +21,7 @@
       "type": "stat",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 4,
@@ -34,7 +34,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT AVG(consumption_kwh_per_100km) AS \"avg\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL AND consumption_kwh_per_100km > 0",
           "format": "table"
@@ -86,7 +86,7 @@
       "type": "stat",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 4,
@@ -99,7 +99,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT MIN(consumption_kwh_per_100km) AS \"best\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km > 0",
           "format": "table"
@@ -135,7 +135,7 @@
       "type": "stat",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 4,
@@ -148,7 +148,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT MAX(consumption_kwh_per_100km) AS \"worst\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km > 0",
           "format": "table"
@@ -184,7 +184,7 @@
       "type": "stat",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 4,
@@ -197,7 +197,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT COUNT(*) AS \"trips\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL",
           "format": "table"
@@ -232,7 +232,7 @@
       "type": "timeseries",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 9,
@@ -245,7 +245,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS \"time\", consumption_kwh_per_100km AS \"kWh/100km\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL AND consumption_kwh_per_100km > 0 ORDER BY start_ts",
           "format": "time_series"
@@ -254,7 +254,7 @@
           "refId": "B",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS \"time\", AVG(consumption_kwh_per_100km) OVER (ORDER BY start_ts ROWS BETWEEN 9 PRECEDING AND CURRENT ROW) AS \"Rolling avg\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL AND consumption_kwh_per_100km > 0 ORDER BY start_ts",
           "format": "time_series"
@@ -329,11 +329,11 @@
     {
       "id": 6,
       "title": "Consumption vs Temperature",
-      "description": "Each dot is one trip. Cold weather increases consumption.",
+      "description": "Each dot is one trip. Cold weather increases consumption. Unconfirmed for Zeekr: depends on outside_temp_c and energy_remaining_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it.",
       "type": "table",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 10,
@@ -346,7 +346,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS \"time\", COALESCE(start_address, '') || ' → ' || COALESCE(end_address, '') AS \"Route\", ROUND(outside_temp_c::numeric, 1) AS \"Temp °C\", ROUND(consumption_kwh_per_100km::numeric, 1) AS \"kWh/100km\", ROUND(distance_km::numeric, 1) AS \"Distance km\", ROUND(avg_speed_kmh::numeric, 1) AS \"Avg Speed\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL AND consumption_kwh_per_100km > 0 AND outside_temp_c IS NOT NULL ORDER BY outside_temp_c",
           "format": "table"
@@ -385,7 +385,7 @@
       "type": "table",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 10,
@@ -398,7 +398,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT start_ts AS \"time\", COALESCE(start_address, '') || ' → ' || COALESCE(end_address, '') AS \"Route\", ROUND(avg_speed_kmh::numeric, 1) AS \"Avg Speed km/h\", ROUND(consumption_kwh_per_100km::numeric, 1) AS \"kWh/100km\", ROUND(distance_km::numeric, 1) AS \"Distance km\", ROUND(outside_temp_c::numeric, 1) AS \"Temp °C\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL AND consumption_kwh_per_100km > 0 AND avg_speed_kmh > 0 ORDER BY avg_speed_kmh",
           "format": "table"
@@ -433,11 +433,11 @@
     {
       "id": 8,
       "title": "Monthly Average Consumption",
-      "description": "Average consumption per month with temperature overlay",
+      "description": "Average consumption per month with temperature overlay Unconfirmed for Zeekr: depends on outside_temp_c and energy_remaining_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it.",
       "type": "barchart",
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "gridPos": {
         "h": 9,
@@ -450,7 +450,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT to_char(date_trunc('month', start_ts), 'YYYY-MM') AS \"Month\", ROUND(AVG(consumption_kwh_per_100km)::numeric, 1) AS \"Avg kWh/100km\", ROUND(AVG(outside_temp_c)::numeric, 1) AS \"Avg Temp °C\" FROM trips WHERE vin = '$vin' AND  $__timeFilter(start_ts) AND consumption_kwh_per_100km IS NOT NULL AND consumption_kwh_per_100km > 0 GROUP BY date_trunc('month', start_ts) ORDER BY date_trunc('month', start_ts)",
           "format": "table"
@@ -522,7 +522,7 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,

@@ -1,9 +1,9 @@
 {
-  "uid": "fordlogger-degradation",
+  "uid": "zeekrmate-degradation",
   "title": "Battery Degradation",
-  "description": "Battery degradation tracking for Ford Puma Gen-E",
+  "description": "zeekrmate battery capacity and range trend (estimates, not a measured state of health). Set the Rated capacity and Rated range variables from your Zeekr 7X variant's published spec to see percentages.",
   "tags": [
-    "fordlogger",
+    "zeekrmate",
     "battery",
     "degradation"
   ],
@@ -35,7 +35,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Latest Battery Capacity",
+      "title": "Latest Reported Battery Capacity",
       "type": "stat",
       "gridPos": {
         "h": 6,
@@ -45,7 +45,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -58,21 +58,58 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 38
-              },
-              {
-                "color": "green",
-                "value": 42
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "% of rated"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 70
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 80
+                    },
+                    {
+                      "color": "green",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "noValue",
+                "value": "set Rated capacity"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -94,13 +131,14 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
-          "rawSql": "SELECT ts AS time, bat_capacity_kwh AS \"Battery Capacity kWh\" FROM positions WHERE vin = '$vin' AND  bat_capacity_kwh IS NOT NULL ORDER BY ts DESC LIMIT 1",
+          "rawSql": "SELECT ts AS time, bat_capacity_kwh AS \"Battery Capacity kWh\", ROUND((bat_capacity_kwh / CASE WHEN '${rated_capacity_kwh}' ~ '^[0-9]+(\\.[0-9]+)?$' THEN NULLIF('${rated_capacity_kwh}', '')::numeric END * 100)::numeric, 1) AS \"% of rated\" FROM positions WHERE vin = '$vin' AND  bat_capacity_kwh IS NOT NULL ORDER BY ts DESC LIMIT 1",
           "format": "table",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on bat_capacity_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it. Percentage uses the Rated capacity variable."
     },
     {
       "id": 2,
@@ -114,7 +152,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -127,20 +165,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 10
-              },
-              {
-                "color": "yellow",
-                "value": 20
-              },
-              {
-                "color": "green",
-                "value": 30
               }
             ]
           }
@@ -167,17 +193,18 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts AS time, energy_remaining_kwh AS \"Energy Remaining kWh\" FROM positions WHERE vin = '$vin' AND  energy_remaining_kwh IS NOT NULL ORDER BY ts DESC LIMIT 1",
           "format": "table",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on energy_remaining_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 3,
-      "title": "Estimated Max Range at 100% SoC",
+      "title": "Estimated Range at 100% SoC",
       "type": "stat",
       "gridPos": {
         "h": 6,
@@ -187,7 +214,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -200,21 +227,58 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 250
-              },
-              {
-                "color": "green",
-                "value": 350
               }
             ]
           }
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "% of rated"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "orange",
+                      "value": 70
+                    },
+                    {
+                      "color": "yellow",
+                      "value": 80
+                    },
+                    {
+                      "color": "green",
+                      "value": 90
+                    }
+                  ]
+                }
+              },
+              {
+                "id": "noValue",
+                "value": "set Rated range"
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": {
@@ -236,18 +300,19 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
-          "rawSql": "SELECT ts AS time, CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END AS \"Max Range Estimate km\" FROM positions WHERE vin = '$vin' AND  soc_pct > 10 AND range_km IS NOT NULL ORDER BY ts DESC LIMIT 1",
+          "rawSql": "SELECT ts AS time, CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END AS \"Max Range Estimate km\", ROUND((CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END / CASE WHEN '${rated_range_km}' ~ '^[0-9]+(\\.[0-9]+)?$' THEN NULLIF('${rated_range_km}', '')::numeric END * 100)::numeric, 0) AS \"% of rated\" FROM positions WHERE vin = '$vin' AND  soc_pct > 10 AND range_km IS NOT NULL ORDER BY ts DESC LIMIT 1",
           "format": "table",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Estimate: latest displayed range scaled to 100% SoC (range_km / soc_pct * 100). The car's range estimate depends on recent driving and temperature, so this is a trend indicator, not a battery health measurement. Percentage uses the Rated range variable."
     },
     {
       "id": 4,
       "title": "Battery Capacity Over Time",
-      "description": "Daily maximum reported battery capacity",
+      "description": "Daily maximum reported battery capacity Unconfirmed for Zeekr: depends on bat_capacity_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it.",
       "type": "timeseries",
       "gridPos": {
         "h": 10,
@@ -257,7 +322,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -333,7 +398,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT date_trunc('day', ts) as time, max(bat_capacity_kwh) as \"Battery Capacity kWh\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND bat_capacity_kwh IS NOT NULL GROUP BY 1 ORDER BY 1",
           "format": "table",
@@ -344,7 +409,7 @@
     {
       "id": 5,
       "title": "SoC vs Range",
-      "description": "Scatter plot of State of Charge vs reported range to visualize degradation trends over time",
+      "description": "Reported SoC and displayed range over time. The range is the car's own estimate and moves with driving style and temperature.",
       "type": "timeseries",
       "gridPos": {
         "h": 10,
@@ -354,7 +419,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -468,7 +533,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT ts as time, range_km as \"Range km\", soc_pct as \"SoC %\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND soc_pct IS NOT NULL AND range_km IS NOT NULL ORDER BY ts",
           "format": "table",
@@ -479,7 +544,7 @@
     {
       "id": 6,
       "title": "Estimated Range at 100% SoC Over Time",
-      "description": "Daily maximum estimated full-charge range, calculated as (range_km / soc_pct) * 100",
+      "description": "Estimate: daily maximum of range_km / soc_pct * 100. A trend indicator, not a measured state of health.",
       "type": "timeseries",
       "gridPos": {
         "h": 10,
@@ -489,7 +554,7 @@
       },
       "datasource": {
         "type": "postgres",
-        "uid": "FordLogger"
+        "uid": "zeekrmate"
       },
       "fieldConfig": {
         "defaults": {
@@ -565,7 +630,7 @@
           "refId": "A",
           "datasource": {
             "type": "postgres",
-            "uid": "FordLogger"
+            "uid": "zeekrmate"
           },
           "rawSql": "SELECT date_trunc('day', ts) as time, max(CASE WHEN soc_pct > 0 THEN range_km / soc_pct * 100 END) as \"Max Range Estimate km\" FROM positions WHERE vin = '$vin' AND  $__timeFilter(ts) AND soc_pct > 10 AND range_km IS NOT NULL GROUP BY 1 ORDER BY 1",
           "format": "table",
@@ -582,13 +647,39 @@
         "type": "query",
         "datasource": {
           "type": "postgres",
-          "uid": "FordLogger"
+          "uid": "zeekrmate"
         },
         "query": "SELECT vin FROM vehicles ORDER BY vin",
         "refresh": 2,
         "sort": 0,
         "includeAll": false,
         "current": {}
+      },
+      {
+        "name": "rated_capacity_kwh",
+        "label": "Rated capacity (kWh)",
+        "type": "textbox",
+        "description": "Set from your Zeekr 7X variant's published spec (usable kWh). Leave empty to hide the percentage.",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "options": [],
+        "hide": 0
+      },
+      {
+        "name": "rated_range_km",
+        "label": "Rated range (km)",
+        "type": "textbox",
+        "description": "Set from your Zeekr 7X variant's published spec (rated range in km, e.g. WLTP). Leave empty to hide the percentage.",
+        "query": "",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "options": [],
+        "hide": 0
       }
     ]
   },

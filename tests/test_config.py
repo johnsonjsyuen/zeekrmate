@@ -1,22 +1,26 @@
-import os
 import json
-import tempfile
+
 import pytest
 
-from fordlogger.config import load_config, INTERVALS, DEFAULT_CONFIG
+from zeekrmate.config import load_config, default_config, INTERVALS
 
 
-def test_load_config_valid(tmp_path, monkeypatch):
-    monkeypatch.delenv("FORDLOGGER_DB_HOST", raising=False)
-    monkeypatch.delenv("FORDLOGGER_DB_PORT", raising=False)
+@pytest.fixture
+def _clear_env(monkeypatch):
+    for name in (
+        "ZEEKRMATE_DB_HOST",
+        "ZEEKRMATE_DB_PORT",
+        "ZEEKRMATE_STORE_RAW_JSON",
+        "ZEEKRMATE_GEOCODING",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+def test_load_config_valid(tmp_path, _clear_env):
     cfg_file = tmp_path / "config.json"
-    cfg_file.write_text(json.dumps({
-        "client_id": "test-id",
-        "client_secret": "test-secret",
-    }))
+    cfg_file.write_text(json.dumps({"sleep_after_minutes": 45}))
     cfg = load_config(str(cfg_file))
-    assert cfg["client_id"] == "test-id"
-    assert cfg["client_secret"] == "test-secret"
+    assert cfg["sleep_after_minutes"] == 45
     # Defaults should be merged
     assert cfg["db_host"] == "db"
     assert cfg["db_port"] == 5432
@@ -27,28 +31,36 @@ def test_load_config_missing_file():
         load_config("/nonexistent/config.json")
 
 
-def test_load_config_missing_credentials(tmp_path):
+def test_env_override(tmp_path, monkeypatch):
     cfg_file = tmp_path / "config.json"
-    cfg_file.write_text(json.dumps({"client_id": "", "client_secret": ""}))
-    with pytest.raises(ValueError, match="client_id"):
-        load_config(str(cfg_file))
+    cfg_file.write_text(json.dumps({}))
+    monkeypatch.setenv("ZEEKRMATE_DB_HOST", "myhost")
+    monkeypatch.setenv("ZEEKRMATE_DB_PORT", "9999")
+    cfg = load_config(str(cfg_file))
+    assert cfg["db_host"] == "myhost"
+    assert cfg["db_port"] == 9999
 
 
-def test_env_override(tmp_path):
+def test_config_file_flags_not_overwritten_by_unset_env(tmp_path, _clear_env):
     cfg_file = tmp_path / "config.json"
-    cfg_file.write_text(json.dumps({
-        "client_id": "test-id",
-        "client_secret": "test-secret",
-    }))
-    os.environ["FORDLOGGER_DB_HOST"] = "myhost"
-    os.environ["FORDLOGGER_DB_PORT"] = "9999"
-    try:
-        cfg = load_config(str(cfg_file))
-        assert cfg["db_host"] == "myhost"
-        assert cfg["db_port"] == 9999
-    finally:
-        os.environ["FORDLOGGER_DB_HOST"] = "localhost"
-        os.environ.pop("FORDLOGGER_DB_PORT", None)
+    cfg_file.write_text(json.dumps({"geocoding": False, "store_raw_json": False}))
+    cfg = load_config(str(cfg_file))
+    assert cfg["geocoding"] is False
+    assert cfg["store_raw_json"] is False
+
+
+def test_env_flags_override_config_file(tmp_path, _clear_env, monkeypatch):
+    cfg_file = tmp_path / "config.json"
+    cfg_file.write_text(json.dumps({"geocoding": True}))
+    monkeypatch.setenv("ZEEKRMATE_GEOCODING", "false")
+    assert load_config(str(cfg_file))["geocoding"] is False
+
+
+def test_default_config_needs_no_file(_clear_env, monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    cfg = default_config()
+    assert cfg["db_port"] == 5432
+    assert cfg["geocoding"] is True
 
 
 def test_intervals_defined():
