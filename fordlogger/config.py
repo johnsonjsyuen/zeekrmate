@@ -59,6 +59,8 @@ def apply_env_overrides(cfg: dict) -> dict:
         cfg["db_host"] = os.environ["FORDLOGGER_DB_HOST"]
     if os.environ.get("FORDLOGGER_DB_PORT"):
         cfg["db_port"] = int(os.environ["FORDLOGGER_DB_PORT"])
+    if os.environ.get("FORDLOGGER_DB_PASSWORD"):
+        cfg["db_password"] = os.environ["FORDLOGGER_DB_PASSWORD"]
     for key, env in (
         ("store_raw_json", "FORDLOGGER_STORE_RAW_JSON"),
         ("geocoding", "FORDLOGGER_GEOCODING"),

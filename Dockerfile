@@ -12,6 +12,6 @@ COPY scripts/ scripts/
 COPY sql/ sql/
 
 HEALTHCHECK --interval=60s --timeout=5s --retries=3 \
-  CMD python -c "import psycopg2; c=psycopg2.connect(host='db',dbname='fordlogger',user='fordlogger',password='fordlogger'); c.close()" || exit 1
+  CMD python -c "from fordlogger.config import load_config; from fordlogger import db; db.connect(load_config('config.json')).close()" || exit 1
 
 CMD ["python", "-m", "fordlogger"]

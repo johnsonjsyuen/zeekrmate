@@ -3,6 +3,8 @@ config.json
 tokens*.json
 *.session.json
 data/
+captures/
+backups/
 secret.json
 *.pem
 .env

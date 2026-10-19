@@ -15,6 +15,7 @@ services:
       - FORDLOGGER_STORE_RAW_JSON=${FORDLOGGER_STORE_RAW_JSON:-true}
       - FORDLOGGER_GEOCODING=${FORDLOGGER_GEOCODING:-true}
       - FORDLOGGER_STATE_DIR=/app/data
+      - FORDLOGGER_DB_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       - ZEEKR_CAPTURE_DIR=/app/data/captures
     env_file:
       - path: .env

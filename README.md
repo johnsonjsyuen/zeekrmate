@@ -59,7 +59,7 @@ Generate strong, distinct passwords, for example with `openssl rand -base64 24`.
 
 `docker compose` refuses to start if a required password is missing.
 
-**Database password for the logger:** the logger connects as `fordlogger` with `db_password` from `config.json`. Set it to the same value as `POSTGRES_PASSWORD`.
+**Database password for the logger:** Docker passes `POSTGRES_PASSWORD` to the logger as `FORDLOGGER_DB_PASSWORD`, so you only set it once in `.env`. (Outside Docker, set `FORDLOGGER_DB_PASSWORD` or `db_password` in `config.json`.)
 
 The database and Grafana passwords are applied **only when their volumes are first created**. To change them later, see [Changing passwords](#changing-passwords).
 
@@ -119,7 +119,7 @@ The database holds a detailed history of where the car has been, including your 
   docker compose exec db bash /docker-entrypoint-initdb.d/20-grafana-readonly.sh
   docker compose up -d --force-recreate grafana
   ```
-- **Database owner:** run `docker compose exec db psql -U fordlogger -d fordlogger -c "\password fordlogger"`, then update `POSTGRES_PASSWORD` in `.env` and `db_password` in `config.json`, and restart the logger.
+- **Database owner:** run `docker compose exec db psql -U fordlogger -d fordlogger -c "\password fordlogger"`, then update `POSTGRES_PASSWORD` in `.env` and restart the logger.
 - **Grafana admin:** change it in the Grafana UI (profile, *Change password*). Changing `GRAFANA_ADMIN_PASSWORD` later has no effect on an existing Grafana volume.
 
 ## Backup and restore
