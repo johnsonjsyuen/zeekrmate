@@ -12,6 +12,7 @@ ZeekrSession owns one ZeekrClient. It:
 """
 
 import logging
+from types import SimpleNamespace
 from typing import Any, Callable, Optional
 
 from .redact import mask_vin, quiet_library_loggers, safe_error
@@ -65,6 +66,16 @@ class ReadOnlyClient:
 
     def __setattr__(self, name, value):
         raise ReadOnlyViolation("ReadOnlyClient is immutable")
+
+
+def _detach(method: str, result):
+    """zeekr_ev_api Vehicle objects hold the raw client (Vehicle._client, with
+    do_remote_control/set_charge_plan/...). Hand out plain vin/data records so
+    no caller can bypass ReadOnlyClient through them."""
+    if method == "get_vehicle_list" and isinstance(result, (list, tuple)):
+        return [SimpleNamespace(vin=getattr(v, "vin", None), data=getattr(v, "data", None))
+                for v in result]
+    return result
 
 
 def _library_exceptions():
@@ -185,7 +196,7 @@ class ZeekrSession:
         where = f"{method}" + (f" [{mask_vin(vin)}]" if vin else "")
         client = self.connect()
         try:
-            return getattr(client, method)(*args, **kwargs)
+            return _detach(method, getattr(client, method)(*args, **kwargs))
         except self._auth_exc as e:
             log.warning("Zeekr: auth error on %s (%s); logging in again once", where, safe_error(e))
         except self._api_exc as e:
@@ -195,7 +206,7 @@ class ZeekrSession:
 
         client = self._fresh_login()
         try:
-            return getattr(client, method)(*args, **kwargs)
+            return _detach(method, getattr(client, method)(*args, **kwargs))
         except self._auth_exc as e:
             raise ZeekrAuthError(f"{where} still unauthorised after re-login ({safe_error(e)})") from None
         except Exception as e:
