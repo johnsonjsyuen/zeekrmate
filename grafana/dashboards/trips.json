@@ -1,7 +1,7 @@
 {
   "uid": "fordlogger-trips",
   "title": "Trips",
-  "description": "FordLogger - Trip overview and statistics",
+  "description": "zeekrmate: Trip overview and statistics",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
@@ -15,7 +15,7 @@
   "fiscalYearStartMonth": 0,
   "liveNow": false,
   "tags": [
-    "fordlogger",
+    "zeekrmate",
     "trips"
   ],
   "panels": [
@@ -211,7 +211,8 @@
           "format": "table",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on energy_remaining_kwh (trip consumption is derived from it), which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 4,
@@ -608,7 +609,8 @@
           "format": "time_series",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Unconfirmed for Zeekr: depends on energy_remaining_kwh (trip consumption is derived from it), which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     },
     {
       "id": 7,

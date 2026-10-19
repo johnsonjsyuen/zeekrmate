@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: FordLogger
+  - name: zeekrmate
     orgId: 1
-    folder: FordLogger
+    folder: zeekrmate
     type: file
     disableDeletion: false
     editable: true

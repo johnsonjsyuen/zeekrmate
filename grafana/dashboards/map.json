@@ -1,7 +1,7 @@
 {
   "uid": "fordlogger-map",
   "title": "Map",
-  "description": "FordLogger trip map with trip selector",
+  "description": "zeekrmate trip map with trip selector",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
@@ -9,7 +9,7 @@
   "liveNow": false,
   "refresh": "",
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-30d",
@@ -41,7 +41,7 @@
           "type": "postgres",
           "uid": "FordLogger"
         },
-        "query": "SELECT 0 AS __value, 'All trips' AS __text UNION ALL SELECT id AS __value, to_char(start_ts AT TIME ZONE 'Europe/Vienna', 'YYYY-MM-DD HH24:MI') || ' — ' || COALESCE(start_address, '') || ' → ' || COALESCE(end_address, '') || ' (' || COALESCE(distance_km::text, '?') || ' km)' AS __text FROM trips WHERE vin = '$vin' AND $__timeFilter(start_ts) ORDER BY __value DESC",
+        "query": "SELECT 0 AS __value, 'All trips' AS __text UNION ALL SELECT id AS __value, to_char(start_ts AT TIME ZONE COALESCE((SELECT name FROM pg_timezone_names WHERE lower(name) = lower('${__timezone}') LIMIT 1), 'UTC'), 'YYYY-MM-DD HH24:MI') || ' — ' || COALESCE(start_address, '') || ' → ' || COALESCE(end_address, '') || ' (' || COALESCE(distance_km::text, '?') || ' km)' AS __text FROM trips WHERE vin = '$vin' AND $__timeFilter(start_ts) ORDER BY __value DESC",
         "refresh": 2,
         "sort": 0,
         "includeAll": false,
@@ -345,10 +345,12 @@
       },
       "options": {
         "view": {
-          "id": "coords",
-          "lat": 48.2,
-          "lon": 16.37,
-          "zoom": 10
+          "id": "fit",
+          "allLayers": true,
+          "lat": 0,
+          "lon": 0,
+          "zoom": 15,
+          "padding": 10
         },
         "basemap": {
           "config": {
@@ -460,7 +462,8 @@
             "tooltip": true
           }
         ]
-      }
+      },
+      "description": "Unconfirmed for Zeekr: depends on speed_kmh for route colouring, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     }
   ],
   "annotations": {
