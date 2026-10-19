@@ -1,12 +1,12 @@
 {
   "uid": "fordlogger-consumption",
   "title": "Consumption",
-  "description": "Energy consumption analysis per trip",
+  "description": "zeekrmate energy consumption per trip. Consumption needs energy_remaining_kwh, which is not yet confirmed from Zeekr captures.",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-90d",
@@ -329,7 +329,7 @@
     {
       "id": 6,
       "title": "Consumption vs Temperature",
-      "description": "Each dot is one trip. Cold weather increases consumption.",
+      "description": "Each dot is one trip. Cold weather increases consumption. Unconfirmed for Zeekr: depends on outside_temp_c and energy_remaining_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it.",
       "type": "table",
       "datasource": {
         "type": "postgres",
@@ -433,7 +433,7 @@
     {
       "id": 8,
       "title": "Monthly Average Consumption",
-      "description": "Average consumption per month with temperature overlay",
+      "description": "Average consumption per month with temperature overlay Unconfirmed for Zeekr: depends on outside_temp_c and energy_remaining_kwh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it.",
       "type": "barchart",
       "datasource": {
         "type": "postgres",

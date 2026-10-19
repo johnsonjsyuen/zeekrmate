@@ -1,7 +1,7 @@
 {
   "uid": "fordlogger-timeline",
   "title": "Timeline",
-  "description": "FordLogger vehicle state history timeline",
+  "description": "zeekrmate vehicle state history timeline",
   "editable": true,
   "graphTooltip": 1,
   "schemaVersion": 39,
@@ -9,7 +9,7 @@
   "liveNow": false,
   "refresh": "",
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-7d",
@@ -336,7 +336,8 @@
             "mean"
           ]
         }
-      }
+      },
+      "description": "Unconfirmed for Zeekr: depends on speed_kmh, which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it."
     }
   ],
   "templating": {

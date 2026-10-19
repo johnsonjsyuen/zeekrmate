@@ -7,7 +7,7 @@
   "graphTooltip": 1,
   "schemaVersion": 39,
   "tags": [
-    "fordlogger"
+    "zeekrmate"
   ],
   "time": {
     "from": "now-24h",
@@ -163,7 +163,8 @@
           "format": "table",
           "refId": "A"
         }
-      ]
+      ],
+      "description": "Columns such as bat_voltage, bat_current_a, charger_* and ignition_status were filled by the old Ford provider and may stay empty for Zeekr. raw_api_response holds the stored Zeekr payload (if FORDLOGGER_STORE_RAW_JSON is on)."
     },
     {
       "id": 2,

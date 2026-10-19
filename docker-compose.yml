@@ -29,14 +29,26 @@ services:
     environment:
       POSTGRES_DB: fordlogger
       POSTGRES_USER: fordlogger
-      POSTGRES_PASSWORD: fordlogger
+      # Required. Set in .env (see .env.example). Only applied when the
+      # pgdata volume is first initialised; changing it later needs ALTER ROLE.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Used by sql/init-roles/20-grafana-readonly.sh to create Grafana's
+      # SELECT-only role.
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_ro}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set GRAFANA_DB_PASSWORD in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - ./sql/schema.sql:/docker-entrypoint-initdb.d/schema.sql
-    ports:
-      - "5432:5432"
+      # Init scripts run in name order, only on an empty pgdata volume.
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/10-schema.sql:ro
+      - ./sql/init-roles/20-grafana-readonly.sh:/docker-entrypoint-initdb.d/20-grafana-readonly.sh:ro
+    # No published port: the logger and Grafana reach Postgres over the
+    # compose network, and backup.sh/restore.sh use `docker compose exec`.
+    # The database holds your full location history. If you need host access
+    # (e.g. psql from the host), publish it on loopback only:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U fordlogger"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -45,16 +57,27 @@ services:
   grafana:
     image: grafana/grafana:11.1.0
     ports:
-      - "3000:3000"
+      # Loopback only by default. To open Grafana to your LAN, set
+      # GRAFANA_BIND=0.0.0.0 in .env (and use a strong admin password).
+      - "${GRAFANA_BIND:-127.0.0.1}:3000:3000"
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      GF_INSTALL_PLUGINS: pr0ps-trackmap-panel
-      GF_SECURITY_ADMIN_PASSWORD: fordlogger
+      # Required. Only applied on Grafana's first start (empty grafana-data
+      # volume); later changes are made in the Grafana UI or with
+      # `grafana cli admin reset-admin-password`.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      # Read by grafana/provisioning/datasources/postgres.yml.
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-grafana_ro}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?set GRAFANA_DB_PASSWORD in .env}
     restart: unless-stopped
 
 volumes:

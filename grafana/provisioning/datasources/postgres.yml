@@ -1,15 +1,23 @@
 apiVersion: 1
 
+# Grafana reads the database through a SELECT-only role (created on first
+# database start by sql/init-roles/10-grafana-readonly.sh). The user name and
+# password come from the Grafana container's environment, which
+# docker-compose.yml fills from .env.
+#
+# The uid stays "FordLogger" for now: every dashboard panel references it.
+# It will change together with the package/database rename.
 datasources:
-  - name: FordLogger
+  - name: zeekrmate
     uid: FordLogger
     type: postgres
     url: db:5432
     database: fordlogger
-    user: fordlogger
+    user: $GRAFANA_DB_USER
     secureJsonData:
-      password: fordlogger
+      password: $GRAFANA_DB_PASSWORD
     jsonData:
+      database: fordlogger
       sslmode: disable
       maxOpenConns: 5
       maxIdleConns: 2
@@ -17,4 +25,4 @@ datasources:
       postgresVersion: 1600
       timescaledb: false
     isDefault: true
-    editable: true
+    editable: false

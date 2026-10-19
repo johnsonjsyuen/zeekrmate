@@ -1,0 +1,33 @@
+zeekrmate
+Self-hosted data logger for the Zeekr 7X.
+
+This program is a modified version of FordLogger.
+
+  Original work: FordLogger, by lutzerb
+  Source:        https://github.com/lutzerb/fordlogger
+  Licence:       GNU Affero General Public License, version 3 (AGPL-3.0)
+
+Modification notice (AGPL-3.0, section 5(a)):
+
+  Modified in 2026 by the zeekrmate contributors
+  (https://github.com/johnsonjsyuen/zeekrmate):
+  - Ford (FordConnect) support removed: OAuth/API client, token handling,
+    Ford-specific configuration, tests and documentation.
+  - Zeekr support added through a vehicle-provider boundary that uses the
+    zeekr_ev_api library.
+  - Grafana dashboards adapted for Zeekr and renamed to zeekrmate.
+  - Deployment hardened (secrets from .env, no published database port,
+    read-only Grafana database role, verified backup and restore).
+  The upstream git history is retained in this repository.
+
+The whole work, including these modifications, is licensed under the
+GNU Affero General Public License, version 3. See the LICENSE file.
+If you run a modified version that users interact with over a network,
+AGPL-3.0 section 13 requires you to offer them the corresponding source.
+
+Third-party components (dependencies, not included in this repository):
+
+  zeekr_ev_api - https://github.com/Fryyyyy/zeekr_ev_api
+  Copyright (c) 2025 Fryyyyy. MIT License.
+
+zeekrmate is not affiliated with or endorsed by Zeekr or Ford.
