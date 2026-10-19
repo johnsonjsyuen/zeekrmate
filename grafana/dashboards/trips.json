@@ -134,7 +134,7 @@
             "type": "postgres",
             "uid": "FordLogger"
           },
-          "rawSql": "SELECT COALESCE(SUM(distance_km), 0) AS \"Total Distance km\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT SUM(distance_km) AS \"Total Distance km\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
           "editorMode": "code"
         }
@@ -207,7 +207,7 @@
             "type": "postgres",
             "uid": "FordLogger"
           },
-          "rawSql": "SELECT COALESCE(AVG(consumption_kwh_per_100km), 0) AS \"Avg Consumption\" FROM trips WHERE vin = '$vin' AND  consumption_kwh_per_100km IS NOT NULL AND start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT AVG(consumption_kwh_per_100km) AS \"Avg Consumption\" FROM trips WHERE vin = '$vin' AND  consumption_kwh_per_100km IS NOT NULL AND start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
           "editorMode": "code"
         }
@@ -269,7 +269,7 @@
             "type": "postgres",
             "uid": "FordLogger"
           },
-          "rawSql": "SELECT COALESCE(AVG(distance_km), 0) AS \"Avg Trip Distance\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
+          "rawSql": "SELECT AVG(distance_km) AS \"Avg Trip Distance\" FROM trips WHERE vin = '$vin' AND  start_ts >= $__timeFrom() AND start_ts <= $__timeTo();",
           "format": "table",
           "editorMode": "code"
         }

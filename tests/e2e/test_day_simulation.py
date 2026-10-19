@@ -774,10 +774,9 @@ def _panel(dash, title):
     return next(sql for d, t, sql in grafana_queries() if d == dash and t == title)
 
 
-@pytest.mark.xfail(strict=True, reason="BUG E2E-8: Overview 'Current State' / 'Plug Status' read the "
-                   "latest positions row: a tick-driven change (->sleeping, stale drive end) writes "
-                   "no position, and Zeekr plug code '1' is not recognised as plugged")
 def test_overview_current_state_and_plug(cfg, conn, tmp_path, monkeypatch, admin):
+    """E2E-8: Current State follows the states table (tick-driven changes write
+    no position); Plug Status shows unconfirmed plug codes raw, not guessed."""
     driving_signal_shim(monkeypatch)
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)
     sim.db_faults.update(pos=True, trip=True)
@@ -806,6 +805,17 @@ def test_overview_current_state_and_plug(cfg, conn, tmp_path, monkeypatch, admin
             cur.execute(substitute(_panel("overview", "Current State"), frm, to))
             shown = cur.fetchone()[1]
         codes = {"parked": 0, "driving": 1, "charging": 2, "sleeping": 3}
-        assert (plug, shown) == (1, codes[actual]), (plug, shown, actual)
+        # Plugged in after the charge finished: the raw code is shown, marked provisional.
+        assert (plug, shown) == ("Code 1 (provisional)", codes[actual]), (plug, shown, actual)
+        assert actual == "sleeping"
     finally:
         c.close()
+
+
+def test_trips_summary_panels_show_no_data_without_trips(cfg, conn):
+    """E2E-9: aggregates over no trips (or no consumption) are NULL (No data), not 0.0."""
+    frm, to = DAY - timedelta(days=1), DAY + timedelta(days=2)
+    for title in ("Total Distance", "Avg Consumption", "Avg Trip Distance"):
+        with conn.cursor() as cur:
+            cur.execute(substitute(_panel("trips", title), frm, to))
+            assert cur.fetchone()[0] is None, title

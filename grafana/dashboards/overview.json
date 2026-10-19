@@ -259,13 +259,17 @@
             {
               "type": "value",
               "options": {
-                "0": {
-                  "text": "Not plugged in",
-                  "color": "text"
+                "Plugged in (charging)": {
+                  "text": "Plugged in (charging)",
+                  "color": "green"
                 },
-                "1": {
+                "Plugged in": {
                   "text": "Plugged in",
                   "color": "green"
+                },
+                "Not plugged in": {
+                  "text": "Not plugged in",
+                  "color": "text"
                 }
               }
             },
@@ -290,7 +294,7 @@
           "calcs": [
             "last"
           ],
-          "fields": ""
+          "fields": "/^plug$/"
         },
         "orientation": "auto",
         "textMode": "auto",
@@ -307,11 +311,11 @@
             "uid": "FordLogger"
           },
           "format": "table",
-          "rawSql": "SELECT ts AS \"time\", CASE WHEN state = 'charging' THEN 1 WHEN lower(plug_status) IN ('connected', 'plugged_in') THEN 1 WHEN plug_status IS NULL THEN NULL ELSE 0 END AS plug FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
+          "rawSql": "SELECT ts AS \"time\",\n  CASE\n    WHEN state = 'charging' THEN 'Plugged in (charging)'\n    WHEN lower(plug_status) IN ('connected', 'plugged_in') THEN 'Plugged in'\n    WHEN lower(plug_status) IN ('disconnected', 'unplugged') THEN 'Not plugged in'\n    WHEN plug_status IS NULL OR plug_status = '' THEN NULL\n    ELSE 'Code ' || plug_status || ' (provisional)'\n  END AS plug\nFROM positions WHERE vin = '$vin'\nORDER BY ts DESC, id DESC LIMIT 1;",
           "editorMode": "code"
         }
       ],
-      "description": "Unconfirmed for Zeekr: depends on the plug_status vocabulary (expects canonical 'connected'), which has not yet been confirmed from real Zeekr 7X captures. Shows No data if the car does not report it. Always shows Plugged in while positions.state is 'charging'."
+      "description": "Plugged in while the logger's state is charging. Otherwise shows the raw plug code the car reports (Zeekr statusOfChargerConnection), marked provisional: its meaning is not yet confirmed from a real Zeekr 7X capture. Canonical 'connected'/'disconnected' values are translated. Unknown if the car does not report it."
     },
     {
       "id": 5,
@@ -481,10 +485,11 @@
             "uid": "FordLogger"
           },
           "format": "table",
-          "rawSql": "SELECT ts AS \"time\", CASE state WHEN 'driving' THEN 1 WHEN 'charging' THEN 2 WHEN 'sleeping' THEN 3 ELSE 0 END AS vehicle_state FROM positions WHERE vin = '$vin'\nORDER BY ts DESC LIMIT 1;",
+          "rawSql": "SELECT time, CASE state WHEN 'driving' THEN 1 WHEN 'charging' THEN 2 WHEN 'sleeping' THEN 3 ELSE 0 END AS vehicle_state\nFROM (\n  (SELECT ts AS time, state, 1 AS src FROM states WHERE vin = '$vin' ORDER BY ts DESC, id DESC LIMIT 1)\n  UNION ALL\n  (SELECT ts AS time, state, 0 AS src FROM positions WHERE vin = '$vin' ORDER BY ts DESC, id DESC LIMIT 1)\n) latest\nORDER BY time DESC, src DESC LIMIT 1;",
           "editorMode": "code"
         }
-      ]
+      ],
+      "description": "Latest of the states table and the latest position. State changes without a new position (falling asleep, a drive ended because no fresh data arrived) are only in the states table."
     },
     {
       "id": 7,
