@@ -98,3 +98,22 @@ def test_sigterm_stops_daemon_loop(monkeypatch):
     handlers[signal.SIGTERM](signal.SIGTERM, None)
     monkeypatch.setattr(poller, "poll_once", lambda: pytest.fail("polled after SIGTERM"))
     poller.run_forever()  # returns immediately, i.e. a clean exit
+
+
+def test_provider_config_error_exits_one_without_traceback(monkeypatch, caplog):
+    class ZeekrConfigError(ValueError):
+        pass
+
+    monkeypatch.setattr(sys, "argv", ["fordlogger"])
+    monkeypatch.setattr(main_module, "load_config", Mock(return_value={}))
+    monkeypatch.setattr(main_module.db, "connect", Mock(return_value=object()))
+    monkeypatch.setattr(main_module.db, "ensure_schema", Mock())
+    monkeypatch.setattr(main_module, "create_providers",
+                        Mock(side_effect=ZeekrConfigError("ZEEKR_USERNAME is not set")))
+    with caplog.at_level("INFO", logger="fordlogger"):
+        with pytest.raises(SystemExit) as exc_info:
+            main_module.main()
+    assert exc_info.value.code == 1
+    errors = [r for r in caplog.records if r.levelname == "ERROR"]
+    assert len(errors) == 1 and "ZEEKR_USERNAME is not set" in errors[0].getMessage()
+    assert errors[0].exc_info is None

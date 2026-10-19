@@ -39,6 +39,13 @@ DEFAULT_CONFIG = {
 _TRUE = ("true", "1", "yes")
 
 
+def mask_vin(vin) -> str:
+    """VIN for logs: only the last 4 characters are shown."""
+    if not isinstance(vin, str) or not vin:
+        return "?"
+    return "***" + vin[-4:]
+
+
 def _env_bool(name: str) -> bool | None:
     value = os.environ.get(name)
     if value is None or value == "":

@@ -20,7 +20,7 @@ import typing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from .config import INTERVALS
+from .config import INTERVALS, mask_vin
 from .models import Position, Vehicle
 from .state_machine import StateMachine, VehicleState, ACTIVE_STATES
 from . import db
@@ -161,7 +161,7 @@ class Poller:
             if saved_state:
                 state = VehicleState(saved_state)
         except ValueError:
-            log.warning("Ignoring unknown saved state %r for %s", saved_state, vin)
+            log.warning("Ignoring unknown saved state %r for %s", saved_state, mask_vin(vin))
         since = None
         if state in ACTIVE_STATES:
             since = db.get_last_state_change(self.conn, vin, state.value)
@@ -175,7 +175,7 @@ class Poller:
             self._last_seen[vin] = (latest["ts"], latest.get("snapshot_key"))
         if saved_state or latest:
             sm.restore(state, since_ts=since, last_ts=last_ts, last_observed=last_observed)
-            log.info("Restored state for %s from DB: %s (since %s)", vin, state.value, since)
+            log.info("Restored state for %s from DB: %s (since %s)", mask_vin(vin), state.value, since)
         self.machines[vin] = sm
         return sm
 
@@ -215,7 +215,7 @@ class Poller:
         ts = getattr(pos, "ts", None)
         if not _aware(ts):
             log.warning(
-                "Skipping reading for %s: timestamp %r is not timezone-aware", vin, ts
+                "Skipping reading for %s: timestamp %r is not timezone-aware", mask_vin(vin), ts
             )
             return None
         ts = ts.astimezone(timezone.utc)
@@ -224,7 +224,7 @@ class Poller:
         if (ts - observed).total_seconds() > self.future_tolerance_s:
             log.warning(
                 "Skipping reading for %s: timestamp %s is ahead of observation time %s",
-                vin, ts.isoformat(), observed.isoformat(),
+                mask_vin(vin), ts.isoformat(), observed.isoformat(),
             )
             return None
 
@@ -235,7 +235,7 @@ class Poller:
                 continue
             coerced = coerce_float(value)
             if coerced is None:
-                log.debug("Dropping non-numeric %s=%r for %s", name, value, vin)
+                log.debug("Dropping non-numeric %s=%r for %s", name, value, mask_vin(vin))
             changes[name] = coerced
         for name in BOOL_FIELDS:
             value = getattr(pos, name)
@@ -303,7 +303,7 @@ class Poller:
                     result.position_errors += 1
                     log.error(
                         "Provider %s: failed to process reading for %s: %s",
-                        provider_name, getattr(pos, "vin", "?"), e, exc_info=True,
+                        provider_name, mask_vin(getattr(pos, "vin", None)), e, exc_info=True,
                     )
 
             if provider_ok:
@@ -316,7 +316,7 @@ class Poller:
                 try:
                     self._tick(vin, observed)
                 except Exception as e:
-                    log.error("Timeout evaluation failed for %s: %s", vin, e, exc_info=True)
+                    log.error("Timeout evaluation failed for %s: %s", mask_vin(vin), e, exc_info=True)
 
         self._run_geocoding()
         return result
@@ -334,13 +334,13 @@ class Poller:
             last_ts, last_key = last
             if pos.snapshot_key is not None:
                 if pos.snapshot_key == last_key:
-                    log.debug("Skipping %s: snapshot unchanged (%s)", vin, pos.snapshot_key)
+                    log.debug("Skipping %s: snapshot unchanged (%s)", mask_vin(vin), pos.snapshot_key)
                     return None
             elif pos.ts == last_ts:
-                log.debug("Skipping %s: data unchanged (ts=%s)", vin, pos.ts)
+                log.debug("Skipping %s: data unchanged (ts=%s)", mask_vin(vin), pos.ts)
                 return None
             if pos.ts < last_ts:
-                log.debug("Skipping %s: reading at %s is older than %s", vin, pos.ts, last_ts)
+                log.debug("Skipping %s: reading at %s is older than %s", mask_vin(vin), pos.ts, last_ts)
                 return None
 
         if vin not in self._known_vins:
@@ -366,7 +366,7 @@ class Poller:
 
         log.info(
             "Position #%d %s | SoC=%s%% | Range=%skm | Odo=%skm | State=%s",
-            pos_id, vin, pos.soc_pct, pos.range_km, pos.odometer_km, new_state.value,
+            pos_id, mask_vin(vin), pos.soc_pct, pos.range_km, pos.odometer_km, new_state.value,
         )
         if changed:
             self._handle_transition(vin, old_state, new_state, sm.last_change_ts)
@@ -386,7 +386,7 @@ class Poller:
         try:
             prev = db.get_position_before(self.conn, vin, ts)
         except Exception as e:
-            log.warning("Could not look up pre-drive reading for %s: %s", vin, e)
+            log.warning("Could not look up pre-drive reading for %s: %s", mask_vin(vin), e)
             return ts
         if prev and (ts - prev["ts"]).total_seconds() <= self.trip_prestart_window_s:
             return prev["ts"]
@@ -402,7 +402,7 @@ class Poller:
                 self._pending_finalize.append(
                     {"kind": "trip", "vin": vin, "start": start, "end": ts, "attempts": 0})
             else:
-                log.warning("Drive end for %s without a known start; trip not recorded", vin)
+                log.warning("Drive end for %s without a known start; trip not recorded", mask_vin(vin))
 
         if new == VehicleState.CHARGING:
             self._charge_start[vin] = ts
@@ -412,12 +412,12 @@ class Poller:
                 self._pending_finalize.append(
                     {"kind": "charge", "vin": vin, "start": start, "end": ts, "attempts": 0})
             else:
-                log.warning("Charge end for %s without a known start; session not recorded", vin)
+                log.warning("Charge end for %s without a known start; session not recorded", mask_vin(vin))
 
         try:
             db.insert_state(self.conn, vin, ts, new.value, old.value)
         except Exception as e:
-            log.error("Could not record state change for %s: %s", vin, e)
+            log.error("Could not record state change for %s: %s", mask_vin(vin), e)
         self._run_pending_finalizations()
 
     def _run_pending_finalizations(self):
@@ -437,10 +437,10 @@ class Poller:
                 job["attempts"] += 1
                 if job["attempts"] >= MAX_FINALIZE_ATTEMPTS:
                     log.error("Giving up on %s finalisation for %s: %s",
-                              job["kind"], job["vin"], e)
+                              job["kind"], mask_vin(job["vin"]), e)
                 else:
                     log.error("%s finalisation failed for %s (will retry): %s",
-                              job["kind"].capitalize(), job["vin"], e, exc_info=True)
+                              job["kind"].capitalize(), mask_vin(job["vin"]), e, exc_info=True)
                     remaining.append(job)
         self._pending_finalize = remaining
 

@@ -2,6 +2,7 @@ import logging
 from .models import Trip
 from . import db
 from . import geocoder
+from .config import mask_vin
 
 log = logging.getLogger("fordlogger")
 
@@ -110,8 +111,9 @@ def finalize_trip(conn, vin: str, drive_start_ts, drive_end_ts, geocoding: bool 
         except Exception as e:
             log.warning("Geocoding failed for trip: %s", e)
     log.info(
-        "Trip saved #%d: %.1fkm, %dmin, %.1f kWh/100km",
+        "Trip saved #%d for %s: %.1fkm, %dmin, %.1f kWh/100km",
         trip_id,
+        mask_vin(vin),
         distance or 0,
         duration_s // 60,
         consumption or 0,

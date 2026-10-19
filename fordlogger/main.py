@@ -53,9 +53,14 @@ def main():
         backfill_addresses(conn)
         return
 
-    providers = create_providers(cfg)
+    try:
+        providers = create_providers(cfg)
+    except Exception as e:  # e.g. ZeekrConfigError (a ValueError) for missing ZEEKR_* vars
+        log.error("Provider configuration error: %s", e)
+        log.debug("Provider configuration error details", exc_info=True)
+        sys.exit(1)
     if not providers:
-        log.error("No vehicle providers configured — add a \"providers\" entry to config.json")
+        log.error("No vehicle providers configured; add a \"providers\" entry to config.json")
         sys.exit(1)
     poller = Poller(cfg, conn, providers)
 

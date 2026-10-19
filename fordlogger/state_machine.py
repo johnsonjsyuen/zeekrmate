@@ -23,6 +23,7 @@ import math
 from datetime import datetime, timedelta
 from enum import Enum
 
+from .config import mask_vin
 from .models import Position
 
 log = logging.getLogger("fordlogger")
@@ -152,7 +153,7 @@ class StateMachine:
         if old in ACTIVE_STATES and idle > stale_after_s:
             end_ts = self._pending_exit_ts or self.last_fresh_ts
             self._clear_pending()
-            log.info("No fresh data for %s for %ds; ending %s", self.vin, idle, old.value)
+            log.info("No fresh data for %s for %ds; ending %s", mask_vin(self.vin), idle, old.value)
             return VehicleState.PARKED, self._apply(old, VehicleState.PARKED, end_ts)
         if old == VehicleState.PARKED and self._last_significant_change is not None:
             quiet = (self.last_fresh_ts - self._last_significant_change).total_seconds() + idle
@@ -168,7 +169,7 @@ class StateMachine:
     def _apply(self, old: VehicleState, new: VehicleState, ts) -> bool:
         changed = new != old
         if changed:
-            log.info("State change %s: %s -> %s", self.vin, old.value, new.value)
+            log.info("State change %s: %s -> %s", mask_vin(self.vin), old.value, new.value)
             self.last_change_ts = ts
         self.state = new
         return changed

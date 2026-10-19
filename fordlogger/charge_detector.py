@@ -2,6 +2,7 @@ import logging
 from .models import ChargeSession
 from . import db
 from . import geocoder
+from .config import mask_vin
 from .trip_detector import _first, _last, _non_negative
 
 log = logging.getLogger("fordlogger")
@@ -83,8 +84,9 @@ def finalize_charge_session(conn, vin: str, charge_start_ts, charge_end_ts,
         except Exception as e:
             log.warning("Geocoding failed for charge session: %s", e)
     log.info(
-        "Charge session saved #%d: %.1f%% -> %.1f%% (+%.1f kWh), %dmin, max %.1f kW",
+        "Charge session saved #%d for %s: %.1f%% -> %.1f%% (+%.1f kWh), %dmin, max %.1f kW",
         cs_id,
+        mask_vin(vin),
         start_soc or 0,
         end_soc or 0,
         energy_added or 0,

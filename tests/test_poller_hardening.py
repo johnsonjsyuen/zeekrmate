@@ -108,6 +108,21 @@ class TestBoundary:
         assert p.speed_kmh == "1" and p.state is None
 
 
+class TestLogging:
+    def test_logs_never_contain_the_full_vin(self, setup, caplog):
+        poller, provider = setup
+        t0 = _base()
+        with caplog.at_level("DEBUG", logger="fordlogger"):
+            _poll(poller, provider, _pos(t0))
+            _poll(poller, provider, _pos(t0))  # dedup debug line
+            for m in (2, 4, 6):
+                _poll(poller, provider, _pos(t0 + timedelta(minutes=m), speed_kmh=50.0))
+            for m in (8, 10):
+                _poll(poller, provider, _pos(t0 + timedelta(minutes=m)))
+        assert "***0001" in caplog.text
+        assert VIN not in caplog.text
+
+
 class TestDedup:
     def test_same_snapshot_key_skipped(self, setup, conn):
         poller, provider = setup
