@@ -12,6 +12,7 @@ Provider boundary policy (``Poller.normalise``):
 * Numeric fields are coerced to ``float``; strings that do not parse,
   booleans, NaN and infinities become ``None``.
 """
+import collections
 import dataclasses
 import logging
 import math
@@ -32,6 +33,7 @@ log = logging.getLogger("fordlogger")
 
 MAX_BACKOFF_S = 600
 MAX_FINALIZE_ATTEMPTS = 10
+RECENT_SNAPSHOTS = 8  # snapshot keys remembered per VIN for deduplication
 
 
 def _float_fields() -> list[str]:
@@ -123,6 +125,10 @@ class Poller:
         self._charge_start: dict[str, datetime] = {}
         # Last processed reading per VIN: (ts, snapshot_key).
         self._last_seen: dict[str, tuple[datetime, str | None]] = {}
+        # Recently stored snapshot keys per VIN: an A, B, A sequence (e.g. one
+        # odd payload between two copies of the same frozen snapshot) does
+        # not store A twice.
+        self._recent_keys: dict[str, collections.deque] = {}
         self._known_vins: set[str] = set()
         # Last successful vehicle-list refresh per provider index (time.time()).
         self._last_vehicle_refresh: dict[int, float] = {}
@@ -177,6 +183,7 @@ class Poller:
         last_observed = latest.get("observed_at") if latest else None
         if latest:
             self._last_seen[vin] = (latest["ts"], latest.get("snapshot_key"))
+            self._remember_key(vin, latest.get("snapshot_key"))
         if saved_state or latest:
             sm.restore(
                 state, since_ts=since, last_ts=last_ts, last_observed=last_observed,
@@ -188,6 +195,10 @@ class Poller:
             log.info("Restored state for %s from DB: %s (since %s)", mask_vin(vin), state.value, since)
         self.machines[vin] = sm
         return sm
+
+    def _remember_key(self, vin: str, key):
+        if key is not None:
+            self._recent_keys.setdefault(vin, collections.deque(maxlen=RECENT_SNAPSHOTS)).append(key)
 
     def _ensure_db(self):
         """Reconnect to PostgreSQL if the connection is broken."""
@@ -343,7 +354,7 @@ class Poller:
         if last is not None:
             last_ts, last_key = last
             if pos.snapshot_key is not None:
-                if pos.snapshot_key == last_key:
+                if pos.snapshot_key == last_key or pos.snapshot_key in self._recent_keys.get(vin, ()):
                     log.debug("Skipping %s: snapshot unchanged (%s)", mask_vin(vin), pos.snapshot_key)
                     return None
             elif pos.ts == last_ts:
@@ -386,6 +397,7 @@ class Poller:
             sm.__dict__.update(saved)
             raise
         self._last_seen[vin] = (pos.ts, pos.snapshot_key)
+        self._remember_key(vin, pos.snapshot_key)
 
         log.info(
             "Position #%d %s | SoC=%s%% | Range=%skm | Odo=%skm | State=%s",

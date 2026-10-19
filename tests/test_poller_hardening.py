@@ -408,3 +408,13 @@ class TestStateRows:
         with conn.cursor() as cur:
             cur.execute("SELECT prev_state, state FROM states ORDER BY ts, id")
             assert cur.fetchall()[-1] == ("driving", "parked")
+
+
+def test_recent_snapshot_is_not_stored_again(setup, conn):
+    """E2E-11: A, garbage, A stores A once (the garbage reading carries A's ts)."""
+    poller, provider = setup
+    t = _base()
+    _poll(poller, provider, _pos(t, snapshot_key="A"))
+    _poll(poller, provider, _pos(t, snapshot_key="G", soc_pct=None))
+    _poll(poller, provider, _pos(t, snapshot_key="A"))
+    assert _count(conn) == 2

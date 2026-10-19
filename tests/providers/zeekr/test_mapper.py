@@ -121,3 +121,15 @@ def test_mapper_survives_cyclic_payload():
     a["self"] = a
     p = map_position(VIN_A, a, a, a, observed_at=NOW)
     assert isinstance(p, Position)
+
+
+@pytest.mark.parametrize("bad", ["garbage", None, ""])
+def test_unparsable_update_time_uses_fallback_ts(bad):
+    """E2E-11: not the poll time, which would hide later valid snapshots."""
+    vs = copy.deepcopy(VEHICLE_STATUS)
+    vs["additionalVehicleStatus"]["climateStatus"]["updateTime"] = bad
+    last = NOW - timedelta(minutes=40)
+    assert map_position(VIN_A, vs, observed_at=NOW, fallback_ts=last).ts == last
+    assert map_position(VIN_A, vs, observed_at=NOW).ts == NOW
+    valid = map_position(VIN_A, VEHICLE_STATUS, observed_at=NOW, fallback_ts=last)
+    assert valid.ts == datetime.fromtimestamp(UPDATE_MS / 1000, tz=timezone.utc)

@@ -30,6 +30,8 @@ class ZeekrProvider(VehicleProvider):
         self._session = session
         self._clock = clock or (lambda: datetime.now(timezone.utc))
         self._vins: list[str] = []
+        # Last ts per VIN: fallback when a payload's updateTime is unusable.
+        self._last_ts: dict[str, datetime] = {}
 
     @property
     def name(self) -> str:
@@ -81,8 +83,10 @@ class ZeekrProvider(VehicleProvider):
             raise ZeekrProviderError(f"get_vehicle_status [{mask_vin(vin)}] returned no data")
         charging_status = self._optional("get_vehicle_charging_status", vin)
         charging_limit = self._optional("get_vehicle_charging_limit", vin)
-        return map_position(vin, status, charging_status, charging_limit,
-                            observed_at=self._clock())
+        pos = map_position(vin, status, charging_status, charging_limit,
+                           observed_at=self._clock(), fallback_ts=self._last_ts.get(vin))
+        self._last_ts[vin] = pos.ts
+        return pos
 
     def get_telemetry(self) -> list[Position]:
         if not self._vins:

@@ -16,7 +16,8 @@ such as {"status": "ok"}, so they provide no field evidence.
   Position field     | Source path                                         | Evidence (file:line)
   -------------------|-----------------------------------------------------|---------------------------------------------
   ts                 | VS.additionalVehicleStatus.climateStatus.updateTime | climate.py:210-217 (ms epoch ->
-                     |   (ms epoch); else observed_at                      |   datetime.fromtimestamp(ms/1000, tz=UTC))
+                     |   (ms epoch); if missing/unparsable: fallback_ts    |   datetime.fromtimestamp(ms/1000, tz=UTC))
+                     |   (last valid ts for the VIN), else observed_at     |
   soc_pct            | EV.chargeLevel                 (%)                  | sensor.py:171-174
   range_km           | EV.distanceToEmptyOnBatteryOnly (km)                | sensor.py:185-188
   odometer_km        | VS.additionalVehicleStatus.maintenanceStatus        | sensor.py:199-202
@@ -213,8 +214,16 @@ def map_position(
     charging_status: Any = None,
     charging_limit: Any = None,
     observed_at: Optional[datetime] = None,
+    fallback_ts: Optional[datetime] = None,
 ) -> Position:
-    """Build one Position from the three read-only payloads. Never raises."""
+    """Build one Position from the three read-only payloads. Never raises.
+
+    ``ts`` is the payload's updateTime. When that is missing or unparsable,
+    ``fallback_ts`` (the provider passes the last valid ts for the VIN) is
+    used, and only without one the observation time: a poll-time ts would
+    be newer than the next valid snapshot, which would then be skipped as
+    "older than the last reading".
+    """
     try:
         observed = observed_at if (observed_at and observed_at.tzinfo) else datetime.now(timezone.utc)
     except Exception:
@@ -236,7 +245,9 @@ def map_position(
         fields = _map_fields(vin_s, vehicle_status, charging_status, observed)
     except Exception:
         fields = {}
-    ts = fields.pop("ts", None) or observed
+    if not (isinstance(fallback_ts, datetime) and fallback_ts.tzinfo is not None):
+        fallback_ts = None
+    ts = fields.pop("ts", None) or fallback_ts or observed
     return Position(
         ts=ts,
         vin=vin_s,

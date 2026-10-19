@@ -166,8 +166,9 @@ Check what was stored:
 docker compose exec db psql -U fordlogger -c "select ts, soc_pct, range_km, odometer_km, lat is not null as has_pos, charge_power_kw, charge_status, plug_status, door_lock_status, state from positions order by id desc limit 3;"
 ```
 
-`ts` is the car's `climateStatus.updateTime` in UTC. If that field is missing,
-`ts` is the time of the poll. `state` uses the mapper's `is_charging` flag, which is
+`ts` is the car's `climateStatus.updateTime` in UTC. If that field is missing
+or unparsable, `ts` is the last valid `updateTime` seen for the car by the
+running process, or the time of the poll if there is none yet. `state` uses the mapper's `is_charging` flag, which is
 provisional until your charging capture confirms the `chargerState` codes.
 
 Then stop the stack. Run it unattended (`docker compose up -d`) only after the

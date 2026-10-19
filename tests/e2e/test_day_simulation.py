@@ -538,9 +538,11 @@ def test_full_day(cfg, conn, tmp_path, monkeypatch, admin, caplog, signal):
     # Ends asleep overnight.
     assert states[-1]["state"] == "sleeping"
     # Garbage poll was stored with numerics dropped, not as zeros.
-    g = rows(c, "SELECT soc_pct, odometer_km, lat FROM positions WHERE raw_json->'vehicle_status'"
+    g = rows(c, "SELECT ts, soc_pct, odometer_km, lat FROM positions WHERE raw_json->'vehicle_status'"
                 "->'additionalVehicleStatus'->'climateStatus'->>'updateTime' = 'garbage'")
     assert g and g[0]["soc_pct"] is None and g[0]["odometer_km"] is None and g[0]["lat"] is None
+    # E2E-11: the unparsable updateTime falls back to the last valid ts, not the poll time.
+    assert g[0]["ts"] < GARBAGE_AT - timedelta(minutes=10), g[0]["ts"]
 
 
 def test_real_mapper_wakes_for_morning_drive(cfg, conn, tmp_path, monkeypatch, admin):
