@@ -18,7 +18,7 @@ It is a modified fork of [FordLogger](https://github.com/lutzerb/fordlogger) by 
 - **Charge session detection**: SoC added, duration, power and (if reported) energy added.
 - **8 Grafana dashboards**: Overview, Trips, Charging, Consumption, Battery Degradation, Map, Timeline and Raw Data.
 - **Raw payload storage**: the API response is kept in `positions.raw_json` so the mapping can be checked and improved later.
-- **Docker Compose deployment**: logger, PostgreSQL 16 and Grafana 11.
+- **Docker Compose deployment**: logger, PostgreSQL 18 and Grafana 12.
 
 ## Requirements
 
@@ -80,8 +80,8 @@ docker compose logs -f zeekrmate
 This starts:
 
 - **zeekrmate**: the polling logger.
-- **db**: PostgreSQL 16. It is not published on any host port.
-- **grafana**: Grafana 11 at <http://localhost:3000> (user `admin`, password `GRAFANA_ADMIN_PASSWORD`).
+- **db**: PostgreSQL 18. It is not published on any host port.
+- **grafana**: Grafana 12 at <http://localhost:3000> (user `admin`, password `GRAFANA_ADMIN_PASSWORD`).
 
 ## Dashboards
 
@@ -190,7 +190,7 @@ python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt pytest
 ```
 
-Run the tests against any PostgreSQL 16 you control (they use a separate test database):
+Run the tests against any PostgreSQL 18 you control (they use a separate test database):
 
 ```bash
 ZEEKRMATE_DB_HOST=localhost ZEEKRMATE_DB_PORT=5432 python -m pytest tests/

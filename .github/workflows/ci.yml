@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: pytest (PostgreSQL 18)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Same major version as docker-compose.yml. The conftest creates and drops
+    # its own zeekrmate_test database using this superuser, so nothing here is
+    # a real deployment secret.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: zeekrmate
+          POSTGRES_USER: zeekrmate
+          POSTGRES_PASSWORD: zeekrmate
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U zeekrmate -d zeekrmate"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      ZEEKRMATE_DB_HOST: localhost
+      ZEEKRMATE_DB_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Matches the python:3.15-slim runtime image.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.15"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest==9.1.1
+
+      # psql is needed by tests/test_security_grafana_role.py, which runs the
+      # Grafana read-only role init script.
+      - name: Check psql is available
+        run: psql --version
+
+      - name: Run tests
+        run: python -m pytest tests/ -rs -q | tee pytest.log
+
+      # The DB-backed tests skip themselves when Postgres isn't reachable.
+      # In CI that would hide most of the suite, so treat any skip as a failure.
+      - name: Fail on skipped tests
+        run: |
+          if grep -Eq '[0-9]+ skipped' pytest.log; then
+            echo "::error::Some tests were skipped in CI; see the SKIPPED lines above."
+            exit 1
+          fi
+
+  deploy-files:
+    name: Compose config & Docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      # Throw-away .env so the required ${...:?} variables resolve.
+      - name: Render docker-compose.yml
+        run: |
+          cp .env.example .env
+          docker compose config > /dev/null
+
+      - name: Build logger image
+        run: docker build --pull -t zeekrmate:ci .
+
+      - name: Smoke-test image imports
+        run: docker run --rm --entrypoint python zeekrmate:ci -c "import zeekrmate.main, zeekrmate.providers.zeekr.provider"
