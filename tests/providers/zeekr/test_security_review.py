@@ -81,8 +81,6 @@ def test_proxy_blocks_attribute_tricks(tmp_path, settings):
         session.call("do_remote_control", VIN_A, "start", "RHL", {})
 
 
-@pytest.mark.xfail(strict=True, reason="defence in depth: ReadOnlyClient.__slots__ makes "
-                   "_client a real attribute, so proxy._client is the raw client")
 def test_proxy_does_not_expose_raw_client_attribute(tmp_path, settings):
     client = _session(tmp_path, settings).connect()
     with pytest.raises(AttributeError):
@@ -113,8 +111,6 @@ def test_no_code_path_names_a_vehicle_command():
     assert hits == []
 
 
-@pytest.mark.xfail(strict=True, reason="defence in depth: allowed bound methods expose "
-                   "the raw client via __self__ (not used by any code path)")
 def test_allowed_bound_methods_do_not_expose_raw_client(tmp_path, settings):
     client = _session(tmp_path, settings).connect()
     raw = client.login.__self__

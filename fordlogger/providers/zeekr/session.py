@@ -12,6 +12,7 @@ ZeekrSession owns one ZeekrClient. It:
 """
 
 import logging
+import types
 from types import SimpleNamespace
 from typing import Any, Callable, Optional
 
@@ -52,17 +53,34 @@ class ReadOnlyViolation(AttributeError):
 
 
 class ReadOnlyClient:
-    """Proxy exposing only READ_ONLY_METHODS of a ZeekrClient."""
+    """Proxy exposing only READ_ONLY_METHODS of a ZeekrClient.
 
-    __slots__ = ("_client",)
+    The raw client is held only in a closure, never as an attribute, and the
+    methods handed out are bound to the proxy (not to the raw client), so
+    neither ``proxy._client`` nor ``proxy.login.__self__`` reaches it. This
+    stops accidental access; Python cannot stop deliberate introspection.
+    """
+
+    __slots__ = ("__call",)
 
     def __init__(self, client):
-        object.__setattr__(self, "_client", client)
+        def call(name, *args, **kwargs):
+            if name not in READ_ONLY_METHODS:
+                raise ReadOnlyViolation(f"Zeekr client method {name!r} is not permitted (read-only)")
+            return getattr(client, name)(*args, **kwargs)
+
+        object.__setattr__(self, "_ReadOnlyClient__call", call)
 
     def __getattr__(self, name: str):
         if name not in READ_ONLY_METHODS:
             raise ReadOnlyViolation(f"Zeekr client method {name!r} is not permitted (read-only)")
-        return getattr(object.__getattribute__(self, "_client"), name)
+        call = object.__getattribute__(self, "_ReadOnlyClient__call")
+
+        def method(_proxy, *args, **kwargs):
+            return call(name, *args, **kwargs)
+
+        method.__name__ = method.__qualname__ = name
+        return types.MethodType(method, self)
 
     def __setattr__(self, name, value):
         raise ReadOnlyViolation("ReadOnlyClient is immutable")
