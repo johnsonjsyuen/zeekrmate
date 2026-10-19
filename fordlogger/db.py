@@ -10,6 +10,10 @@ from .models import Vehicle, Position, Trip, ChargeSession
 log = logging.getLogger("fordlogger")
 
 SCHEMA_FILE = Path(__file__).parent.parent / "sql" / "schema.sql"
+MIGRATIONS_DIR = Path(__file__).parent.parent / "sql" / "migrations"
+# Arbitrary constant key for pg_advisory_xact_lock: serialises concurrent
+# ensure_schema() calls (e.g. the daemon and a `--once` run starting together).
+SCHEMA_LOCK_ID = 4_618_211_001
 
 
 def connect(cfg: dict):
@@ -24,23 +28,87 @@ def connect(cfg: dict):
     return conn
 
 
-def ensure_schema(conn):
-    schema_sql = SCHEMA_FILE.read_text()
-    with conn.cursor() as cur:
-        cur.execute(schema_sql)
+def migration_files(migrations_dir: Path = MIGRATIONS_DIR) -> list[Path]:
+    """Return sql/migrations/NNNN_<name>.sql files in apply order."""
+    if not migrations_dir.is_dir():
+        return []
+    files = sorted(migrations_dir.glob("[0-9][0-9][0-9][0-9]_*.sql"))
+    numbers = [f.name[:4] for f in files]
+    dupes = sorted({n for n in numbers if numbers.count(n) > 1})
+    if dupes:
+        raise ValueError(f"Duplicate schema migration number(s): {', '.join(dupes)}")
+    return files
+
+
+def ensure_schema(conn, migrations_dir: Path = MIGRATIONS_DIR) -> list[str]:
+    """Apply sql/schema.sql (idempotent baseline), then each pending migration once.
+
+    Runs as ONE transaction (psycopg2 >= 2.9 opens one for `with conn` even on
+    an autocommit connection) under a transaction-scoped advisory lock, so
+    concurrent starters serialise and a failing migration changes nothing.
+    Migration files must not contain BEGIN/COMMIT or CONCURRENTLY.
+    Returns the migration versions (file stems) applied by this call.
+    """
+    applied = []
+    with conn, conn.cursor() as cur:
+        cur.execute("SELECT pg_advisory_xact_lock(%s)", (SCHEMA_LOCK_ID,))
+        cur.execute(SCHEMA_FILE.read_text())
+        cur.execute("SELECT version FROM schema_migrations")
+        done = {row[0] for row in cur.fetchall()}
+        for path in migration_files(migrations_dir):
+            if path.stem not in done:
+                cur.execute(path.read_text())
+                cur.execute(
+                    "INSERT INTO schema_migrations (version) VALUES (%s)",
+                    (path.stem,),
+                )
+                applied.append(path.stem)
+    for version in applied:
+        log.info("Applied schema migration %s", version)
     log.info("Database schema created/verified")
+    return applied
 
 
 def upsert_vehicle(conn, v: Vehicle):
+    """Insert or update a vehicle; NULL fields never overwrite known values."""
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO vehicles (vin, make, model, model_year, color, nickname, engine_type, first_seen, updated_at)
             VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
             ON CONFLICT (vin) DO UPDATE SET
-                nickname = COALESCE(EXCLUDED.nickname, vehicles.nickname),
+                make = COALESCE(EXCLUDED.make, vehicles.make),
                 model = COALESCE(EXCLUDED.model, vehicles.model),
+                model_year = COALESCE(EXCLUDED.model_year, vehicles.model_year),
+                color = COALESCE(EXCLUDED.color, vehicles.color),
+                nickname = COALESCE(EXCLUDED.nickname, vehicles.nickname),
+                engine_type = COALESCE(EXCLUDED.engine_type, vehicles.engine_type),
                 updated_at = NOW()
         """, (v.vin, v.make, v.model, v.model_year, v.color, v.nickname, v.engine_type))
+
+
+def ensure_vehicle(conn, vin: str):
+    """Make sure a vehicles row exists for vin (positions.vin is a FK)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO vehicles (vin, first_seen, updated_at) VALUES (%s, NOW(), NOW()) "
+            "ON CONFLICT (vin) DO NOTHING",
+            (vin,),
+        )
+
+
+def serialize_raw_json(raw) -> str | None:
+    """Serialise a raw provider payload for the JSONB column without raising.
+
+    datetime/Decimal/other objects are stringified; NaN/Infinity (rejected by
+    JSONB) or anything else unserialisable is replaced by a marker object.
+    """
+    if raw is None:
+        return None
+    try:
+        return json.dumps(raw, default=str, allow_nan=False)
+    except (TypeError, ValueError) as e:
+        log.warning("raw_json not serialisable (%s); storing marker", type(e).__name__)
+        return json.dumps({"_unserialisable": type(e).__name__})
 
 
 def insert_position(conn, p: Position) -> int:
@@ -53,7 +121,8 @@ def insert_position(conn, p: Position) -> int:
                 plug_status, charge_status, charge_power_kw,
                 charger_voltage, charger_current_a,
                 tire_pressure_fl, tire_pressure_fr, tire_pressure_rl, tire_pressure_rr,
-                door_lock_status, ignition_status, state, raw_json
+                door_lock_status, ignition_status, state, raw_json,
+                observed_at, snapshot_key
             ) VALUES (
                 %s, %s, %s, %s, %s, %s,
                 %s, %s, %s, %s, %s,
@@ -61,7 +130,8 @@ def insert_position(conn, p: Position) -> int:
                 %s, %s, %s,
                 %s, %s,
                 %s, %s, %s, %s,
-                %s, %s, %s, %s
+                %s, %s, %s, %s,
+                COALESCE(%s, NOW()), %s
             ) RETURNING id
         """, (
             p.ts, p.vin, p.soc_pct, p.range_km, p.odometer_km, p.speed_kmh,
@@ -71,7 +141,8 @@ def insert_position(conn, p: Position) -> int:
             p.charger_voltage, p.charger_current_a,
             p.tire_pressure_fl, p.tire_pressure_fr, p.tire_pressure_rl, p.tire_pressure_rr,
             p.door_lock_status, p.ignition_status, p.state,
-            json.dumps(p.raw_json) if p.raw_json else None,
+            serialize_raw_json(p.raw_json),
+            p.observed_at, p.snapshot_key,
         ))
         return cur.fetchone()[0]
 
@@ -151,7 +222,7 @@ def insert_charge_session(conn, cs: ChargeSession) -> int:
 def get_latest_position(conn, vin: str) -> dict | None:
     with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
         cur.execute(
-            "SELECT * FROM positions WHERE vin = %s ORDER BY ts DESC LIMIT 1",
+            "SELECT * FROM positions WHERE vin = %s ORDER BY ts DESC, id DESC LIMIT 1",
             (vin,),
         )
         return cur.fetchone()
@@ -160,7 +231,7 @@ def get_latest_position(conn, vin: str) -> dict | None:
 def get_latest_state(conn, vin: str) -> str | None:
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT state FROM states WHERE vin = %s ORDER BY ts DESC LIMIT 1",
+            "SELECT state FROM states WHERE vin = %s ORDER BY ts DESC, id DESC LIMIT 1",
             (vin,),
         )
         row = cur.fetchone()
@@ -174,3 +245,24 @@ def get_positions_since(conn, vin: str, since_ts) -> list[dict]:
             (vin, since_ts),
         )
         return cur.fetchall()
+
+
+def get_last_state_change(conn, vin: str, state: str):
+    """Return ts of the most recent transition into ``state`` for vin, or None."""
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT ts FROM states WHERE vin = %s AND state = %s ORDER BY ts DESC, id DESC LIMIT 1",
+            (vin, state),
+        )
+        row = cur.fetchone()
+        return row[0] if row else None
+
+
+def get_position_before(conn, vin: str, ts) -> dict | None:
+    """Return the latest position strictly before ts for vin, or None."""
+    with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+        cur.execute(
+            "SELECT * FROM positions WHERE vin = %s AND ts < %s ORDER BY ts DESC LIMIT 1",
+            (vin, ts),
+        )
+        return cur.fetchone()
