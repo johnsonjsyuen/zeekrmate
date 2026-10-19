@@ -54,10 +54,13 @@ All secrets live in a `.env` file next to `docker-compose.yml`. It is git-ignore
 | `ZEEKR_HMAC_ACCESS_KEY`, `ZEEKR_HMAC_SECRET_KEY`, `ZEEKR_PASSWORD_PUBLIC_KEY`, `ZEEKR_PROD_SECRET`, `ZEEKR_VIN_KEY`, `ZEEKR_VIN_IV` | yes | logger | App keys required by `zeekr_ev_api` (supply your own). |
 | `FORDLOGGER_STORE_RAW_JSON` | no (default `true`) | logger | Keep raw API payloads. Leave on until the mapping is confirmed. |
 | `FORDLOGGER_GEOCODING` | no (default `true`) | logger | Look up trip and charge addresses with OpenStreetMap Nominatim. This sends coordinates to OSM; set `false` to keep them local. |
+| `APP_UID`, `APP_GID` | no (default `1000`) | logger (build) | User/group the logger container runs as. Must be able to write `./data`. |
 
 Generate strong, distinct passwords, for example with `openssl rand -base64 24`. Avoid `$` in values (Compose treats it as a variable), or wrap the value in single quotes in `.env`.
 
-`docker compose` refuses to start if a required password is missing.
+`docker compose` refuses to start if a required password is missing, and the logger refuses to start while `POSTGRES_PASSWORD` is still a `change-me...` placeholder from `.env.example`.
+
+Each container only receives the variables it needs: the logger gets the `ZEEKR_*` values and the database password, never the Grafana passwords.
 
 **Database password for the logger:** Docker passes `POSTGRES_PASSWORD` to the logger as `FORDLOGGER_DB_PASSWORD`, so you only set it once in `.env`. (Outside Docker, set `FORDLOGGER_DB_PASSWORD` or `db_password` in `config.json`.)
 
@@ -108,7 +111,11 @@ The database holds a detailed history of where the car has been, including your 
 - **PostgreSQL is not published** on the host. Only the logger and Grafana reach it, over the Compose network. To use `psql` from the host, uncomment the `127.0.0.1:5432:5432` line in `docker-compose.yml` (loopback only).
 - **Grafana listens on `127.0.0.1` only.** To use it from other devices on your network, set `GRAFANA_BIND=0.0.0.0` in `.env`. Do not expose port 3000 to the internet; use a VPN (for example Tailscale or WireGuard) instead.
 - **Grafana reads the database as a SELECT-only role** (`GRAFANA_DB_USER`). It is created by `sql/init-roles/20-grafana-readonly.sh` when the database is first initialised.
-- **No default passwords.** Every password comes from `.env`.
+- **No default passwords.** Every password comes from `.env`; the logger rejects the `change-me` placeholders.
+- **Least privilege per container.** The logger receives only `ZEEKR_*`, its `FORDLOGGER_*` settings and the database password (no `env_file`). Grafana receives only its own passwords. The logger container runs as a non-root user (`APP_UID`/`APP_GID`, default 1000).
+- **The Grafana role cannot** write, create temporary objects, take advisory locks (so it cannot block the logger's start-up) or connect to other databases.
+- **The logger connects as the database owner**, which the `postgres` image makes a superuser. A separate non-superuser logger role is not set up yet, because the existing tables would have to change owner; treat the logger container as trusted with the whole database.
+- **Logs never contain a full VIN**: every log line is passed through a VIN mask (last 4 characters), including database error details.
 - **Backups contain the same data.** Keep them private.
 
 ### Changing passwords

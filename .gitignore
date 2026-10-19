@@ -8,6 +8,11 @@ backups/
 secret.json
 *.pem
 .env
+.env.*
+!.env.example
+zeekr_session.json
+*.dump
+*-sanitised/
 
 # Database
 

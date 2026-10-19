@@ -58,7 +58,17 @@ Why: compose mounts `./config.json` read-only with `create_host_path: false`,
 so a missing file is an error, not a silently created directory. `./data` is
 the only data mount. It holds `zeekr_session.json` (login tokens, mode 0600,
 password stripped) and `captures/`. If `data/` does not exist, Docker creates
-it owned by root.
+it owned by root, and the logger cannot write to it.
+
+The logger container runs as a **non-root user, uid/gid 1000** by default.
+`data/` must be owned by that user and `config.json` readable by it. If your
+own uid is not 1000 (check with `id -u`), either build with your ids:
+
+```bash
+echo "APP_UID=$(id -u)" >> .env && echo "APP_GID=$(id -g)" >> .env
+```
+
+or hand the directory to uid 1000: `sudo chown -R 1000:1000 data`.
 
 ## 3. Connection check (`--check`)
 

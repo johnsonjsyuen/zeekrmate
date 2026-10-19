@@ -7,7 +7,11 @@ __pycache__/
 *.pyo
 .pytest_cache/
 .env
-.env.example
+.env.*
+**/zeekr_session.json
+**/*.dump
+backups/
+*-sanitised/
 config.json
 tokens*.json
 *.session.json

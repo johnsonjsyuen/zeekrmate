@@ -1,6 +1,12 @@
 services:
   fordlogger:
-    build: .
+    build:
+      context: .
+      args:
+        # The container runs as this (non-root) uid/gid; ./data must be
+        # writable by it (see docs/first_real_test.md, step 2).
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
     volumes:
       # config.json must exist on the host first (no directory is created).
       - type: bind
@@ -11,15 +17,24 @@ services:
           create_host_path: false
       # Only data mount: Zeekr session (zeekr_session.json) and captures.
       - ./data:/app/data
+    # Only what the logger needs, listed one by one: there is deliberately no
+    # env_file, so the Grafana passwords in .env never reach this container.
+    # Empty ZEEKR_* values are reported by the logger by NAME only.
     environment:
-      - FORDLOGGER_STORE_RAW_JSON=${FORDLOGGER_STORE_RAW_JSON:-true}
-      - FORDLOGGER_GEOCODING=${FORDLOGGER_GEOCODING:-true}
-      - FORDLOGGER_STATE_DIR=/app/data
-      - FORDLOGGER_DB_PASSWORD=${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-      - ZEEKR_CAPTURE_DIR=/app/data/captures
-    env_file:
-      - path: .env
-        required: false
+      FORDLOGGER_STORE_RAW_JSON: ${FORDLOGGER_STORE_RAW_JSON:-true}
+      FORDLOGGER_GEOCODING: ${FORDLOGGER_GEOCODING:-true}
+      FORDLOGGER_STATE_DIR: /app/data
+      FORDLOGGER_DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      ZEEKR_CAPTURE_DIR: /app/data/captures
+      ZEEKR_USERNAME: ${ZEEKR_USERNAME:-}
+      ZEEKR_PASSWORD: ${ZEEKR_PASSWORD:-}
+      ZEEKR_COUNTRY_CODE: ${ZEEKR_COUNTRY_CODE:-AU}
+      ZEEKR_HMAC_ACCESS_KEY: ${ZEEKR_HMAC_ACCESS_KEY:-}
+      ZEEKR_HMAC_SECRET_KEY: ${ZEEKR_HMAC_SECRET_KEY:-}
+      ZEEKR_PASSWORD_PUBLIC_KEY: ${ZEEKR_PASSWORD_PUBLIC_KEY:-}
+      ZEEKR_PROD_SECRET: ${ZEEKR_PROD_SECRET:-}
+      ZEEKR_VIN_KEY: ${ZEEKR_VIN_KEY:-}
+      ZEEKR_VIN_IV: ${ZEEKR_VIN_IV:-}
     depends_on:
       db:
         condition: service_healthy
