@@ -246,8 +246,6 @@ def test_sanitiser_handles_nested_and_embedded_values():
     assert "-33.868812" not in out and "151.209312" not in out
 
 
-@pytest.mark.xfail(strict=True, reason="sanitiser misses coordinates not under lat/lon/"
-                   "latitude/longitude keys (pairs, 'coordinates' arrays, *Lat/*Lng)")
 @pytest.mark.parametrize("data", [
     {"coordinates": [151.209312, -33.868812]},
     {"location": "-33.868812,151.209312"},
@@ -259,15 +257,11 @@ def test_sanitiser_rounds_unusual_coordinate_shapes(data):
     assert "868812" not in out and "209312" not in out
 
 
-@pytest.mark.xfail(strict=True, reason="VIN regex needs \\b: VIN inside a word-joined "
-                   "string such as 'trip_<VIN>' survives sanitising")
 def test_sanitiser_vin_joined_with_underscore():
     out = json.dumps(Sanitiser().value({"ref": f"trip_{VIN_A}"}))
     assert VIN_A not in out
 
 
-@pytest.mark.xfail(strict=True, reason="header lists like [{name: authorization, value: x}] "
-                   "keep short token values")
 def test_sanitiser_header_list_token():
     out = json.dumps(Sanitiser().value({"headers": [{"name": "authorization", "value": "tok-123"}]}))
     assert "tok-123" not in out
@@ -276,3 +270,25 @@ def test_sanitiser_header_list_token():
 def test_forbidden_methods_still_raise_on_fake():
     with pytest.raises(ForbiddenCall):
         FakeClient().do_remote_control()
+
+
+@pytest.mark.parametrize("data,kept", [
+    ({"plateNo": "ABC123"}, None),
+    ({"position": {"altitude": "12", "direction": "90", "posCanBeTrusted": True}}, '"direction": "90"'),
+    ({"latestUpdateTime": 1760000000000}, "1760000000000"),
+    ({"temps": [21.5, 22.0]}, "21.5"),
+    ({"chargeLevel": "78"}, '"78"'),
+])
+def test_sanitiser_coordinate_rules_leave_other_values(data, kept):
+    out = json.dumps(Sanitiser().value(data))
+    if kept is None:
+        assert "ABC123" not in out
+    else:
+        assert kept in out
+
+
+def test_sanitiser_lower_case_vin_maps_to_same_placeholder():
+    s = Sanitiser()
+    out = s.value({"a": VIN_A, "b": f"ref-{VIN_A.lower()}-x"})
+    assert VIN_A.lower() not in json.dumps(out).lower()
+    assert out["a"] in out["b"]

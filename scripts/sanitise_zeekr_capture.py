@@ -6,15 +6,23 @@
 
 What is replaced (consistently across all files in the capture, so the same
 VIN/ID gets the same placeholder everywhere):
-- VINs (by key name and any 17-char VIN-shaped string) -> ZEEKRVIN000000001...
+- VINs (by key name and any 17-char VIN-shaped token anywhere in a string,
+  any case, also inside e.g. "trip_<VIN>") -> ZEEKRVIN000000001...
 - identifiers (keys ending in "id"/"Id"/"ID", "sn", iccid/imei/imsi, plate)
   -> stable placeholders of the same type (int stays int, str stays str)
 - names, nicknames, user/account/owner fields, addresses -> "name-1", ...
 - phone/mobile numbers, e-mail addresses -> placeholders
 - tokens/secrets/passwords/keys/signatures and any JWT- or long opaque
   token-like string -> "<redacted-token-N>"
-- coordinates (keys latitude/longitude/lat/lon/lng, incl. startLatitude ...)
-  -> rounded to 2 decimal places (~1 km); type is kept
+- coordinates -> rounded to 2 decimal places (~1 km); type is kept:
+  * any key containing lat/lon/lng/latitude/longitude, any case (startLat,
+    gpsLng, ...), unless the key is clearly something else (plate, id, ...);
+  * decimals inside coordinate containers (coordinates, location, position,
+    gps, geo, point, geometry, ...), e.g. GeoJSON [lon, lat] arrays;
+  * any list of 2-3 numbers within +-180 with more than 2 decimals;
+  * "lat,lon" pairs inside any string
+- header-style lists ([{"name": "authorization", "value": ...}]): the value
+  is treated according to the name
 
 Other values (SoC, odometer, temperatures, status codes, timestamps) are left
 as captured. The output still describes your car's behaviour; review it
@@ -28,12 +36,24 @@ import re
 import sys
 from pathlib import Path
 
-VIN_RE = re.compile(r"\b[A-HJ-NPR-Z0-9]{17}\b")
+# Same pattern as fordlogger.logsafe.VIN_RE (kept standalone: stdlib only).
+VIN_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?=[A-HJ-NPR-Z0-9]{0,16}[0-9])[A-HJ-NPR-Z0-9]{17}(?![A-Za-z0-9])",
+    re.IGNORECASE,
+)
+COORD_PAIR_RE = re.compile(r"(?<![\d.])(-?\d{1,3}\.\d{3,})(\s*,\s*)(-?\d{1,3}\.\d{3,})(?![\d.])")
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 JWT_RE = re.compile(r"eyJ[\w-]+\.[\w-]+\.[\w-]*")
 OPAQUE_RE = re.compile(r"^(?:[Bb]earer\s+)?[A-Za-z0-9+/=_.-]{32,}$")
 
 COORD_KEYS_EXACT = {"lat", "lon", "lng", "latitude", "longitude"}
+COORD_SUBSTRINGS = ("lat", "lon", "lng")
+# Containers whose numeric leaves are coordinates (GeoJSON etc.).
+COORD_CONTAINERS = ("coord", "location", "position", "gps", "geo", "point", "geometry",
+                    "latlng", "lnglat", "track", "route", "polyline")
+# Header-style {"name": ..., "value": ...} records.
+PAIR_NAME_KEYS = ("name", "key", "header", "field")
+PAIR_VALUE_KEYS = ("value", "val")
 TOKEN_WORDS = ("token", "secret", "password", "passwd", "signature", "cookie",
                "authorization", "accesskey", "apikey", "privatekey", "publickey", "session")
 # matched as key suffix
@@ -61,6 +81,8 @@ class Sanitiser:
         self.maps: dict[str, dict] = {}
 
     def _placeholder(self, kind: str, original):
+        if kind == "vin" and isinstance(original, str):
+            original = original.upper()
         table = self.maps.setdefault(kind, {})
         k = (type(original).__name__, original)
         if k not in table:
@@ -104,22 +126,49 @@ class Sanitiser:
         if k in NAME_EXACT or any(k.endswith(w) for w in NAME_WORDS):
             return "name"
         if k in ID_EXACT or (k.endswith("id") and k not in NOT_ID) or k.endswith("ids") \
-                or k.endswith("uuid"):
+                or k.endswith("uuid") or "plate" in k:
             return "id"
+        if any(w in k for w in COORD_SUBSTRINGS):
+            return "coord"
+        if any(w in k for w in COORD_CONTAINERS):
+            return "coordctx"
         return None
 
-    @staticmethod
-    def _round_coord(value):
+    def _round_coord(self, value, only_decimals=False):
+        """Round a coordinate to 2 dp. ``only_decimals``: inside a coordinate
+        container, leave integers and values outside +-180 alone."""
         if isinstance(value, bool):
             return value
         if isinstance(value, (int, float)):
+            if only_decimals and (isinstance(value, int) or abs(value) > 180):
+                return value
             return round(float(value), 2)
         if isinstance(value, str):
             try:
-                return f"{round(float(value.strip()), 2):.2f}"
+                f = float(value.strip())
             except ValueError:
+                return self._scrub_string(value)
+            if only_decimals and ("." not in value or abs(f) > 180):
                 return value
+            return f"{round(f, 2):.2f}"
         return value
+
+    @staticmethod
+    def _looks_like_coord_list(value) -> bool:
+        nums = [v for v in value if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        if not 2 <= len(value) <= 3 or len(nums) != len(value):
+            return False
+        if any(abs(v) > 180 for v in nums):
+            return False
+        precise = [v for v in nums if isinstance(v, float) and abs(v - round(v, 2)) > 1e-9]
+        return len(precise) >= 2
+
+    def _pair_kind(self, d: dict):
+        """For {"name": "authorization", "value": x}: the kind of the value."""
+        names = [d[k] for k in d if _norm(k) in PAIR_NAME_KEYS and isinstance(d[k], str)]
+        if len(names) != 1 or not any(_norm(k) in PAIR_VALUE_KEYS for k in d):
+            return None
+        return self._key_kind(names[0])
 
     def _scrub_key(self, key):
         if isinstance(key, str):
@@ -132,17 +181,32 @@ class Sanitiser:
         s = JWT_RE.sub(lambda m: self._placeholder("token", m.group(0)), s)
         s = EMAIL_RE.sub(lambda m: self._placeholder("email", m.group(0)), s)
         s = VIN_RE.sub(lambda m: self._placeholder("vin", m.group(0)), s)
+        s = COORD_PAIR_RE.sub(
+            lambda m: f"{round(float(m.group(1)), 2):.2f}{m.group(2)}{round(float(m.group(3)), 2):.2f}", s)
         return s
 
     def value(self, value, kind=None):
         if isinstance(value, dict):
-            return {self._scrub_key(k): self.value(v, self._key_kind(k)) for k, v in value.items()}
+            pair_kind = self._pair_kind(value)
+            out = {}
+            for k, v in value.items():
+                child = self._key_kind(k)
+                if pair_kind and _norm(k) in PAIR_VALUE_KEYS:
+                    child = pair_kind
+                elif child is None and kind == "coordctx":
+                    child = "coordctx"
+                out[self._scrub_key(k)] = self.value(v, child)
+            return out
         if isinstance(value, list):
+            if kind not in ("coord", "coordctx") and self._looks_like_coord_list(value):
+                kind = "coord"
             return [self.value(v, kind) for v in value]
         if value is None or isinstance(value, bool):
             return value
         if kind == "coord":
             return self._round_coord(value)
+        if kind == "coordctx":
+            return self._round_coord(value, only_decimals=True)
         if kind in ("vin", "token", "email", "phone", "name", "id"):
             if isinstance(value, str) and not value.strip():
                 return value
