@@ -45,6 +45,13 @@ class Position:
     door_lock_status: Optional[str] = None
     ignition_status: Optional[str] = None
     state: Optional[str] = None
+    # Provider-neutral signals (set by the provider mapper; None = unknown).
+    # ts is the vehicle/provider timestamp (tz-aware UTC); observed_at is when
+    # we fetched it. snapshot_key, when set, replaces ts-only deduplication.
+    observed_at: Optional[datetime] = None
+    snapshot_key: Optional[str] = None
+    is_driving: Optional[bool] = None
+    is_charging: Optional[bool] = None
     raw_json: Optional[dict] = field(default=None, repr=False)
     id: Optional[int] = None
 
