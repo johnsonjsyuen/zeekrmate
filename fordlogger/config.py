@@ -36,7 +36,8 @@ DEFAULT_CONFIG = {
     "state_exit_debounce": 2,
     # Anchor a trip at the last reading before driving if it is this recent.
     "trip_prestart_window_s": 900,
-    # Peak charge power above this is classed DC (7X: 22 kW AC on-board charger).
+    # Peak charge power above this (+5% tolerance for AC jitter) is classed DC
+    # (7X: 22 kW AC on-board charger).
     "dc_threshold_kw": 22.0,
     "store_raw_json": True,
     "geocoding": True,

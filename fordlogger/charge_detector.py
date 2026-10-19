@@ -8,6 +8,9 @@ from .trip_detector import _first, _last, _non_negative
 log = logging.getLogger("fordlogger")
 
 DEFAULT_DC_THRESHOLD_KW = 22.0  # the AU Zeekr 7X has a 22 kW AC on-board charger
+# Reported AC power jitters above the nominal rating (3-phase 32 A is about
+# 22.1 kW): a peak up to threshold * AC_TOLERANCE still counts as AC.
+AC_TOLERANCE = 1.05
 
 
 def finalize_charge_session(conn, vin: str, charge_start_ts, charge_end_ts,
@@ -15,8 +18,8 @@ def finalize_charge_session(conn, vin: str, charge_start_ts, charge_end_ts,
                             dc_threshold_kw: float = DEFAULT_DC_THRESHOLD_KW) -> ChargeSession | None:
     """Create a charge session summary from positions between start and end timestamps.
 
-    Sessions whose peak power exceeds ``dc_threshold_kw`` are classed DC,
-    otherwise AC. A negative SoC/energy gain is stored as NULL.
+    Sessions whose peak power exceeds ``dc_threshold_kw * AC_TOLERANCE`` are
+    classed DC, otherwise AC. A negative SoC/energy gain is stored as NULL.
     """
     positions = db.get_positions_since(conn, vin, charge_start_ts)
     charge_positions = [p for p in positions if p["ts"] <= charge_end_ts]
@@ -52,7 +55,7 @@ def finalize_charge_session(conn, vin: str, charge_start_ts, charge_end_ts,
     # Determine charge type from peak power (heuristic until providers report it)
     charge_type = None
     if max_power is not None:
-        charge_type = "DC" if max_power > dc_threshold_kw else "AC"
+        charge_type = "DC" if max_power > dc_threshold_kw * AC_TOLERANCE else "AC"
 
     temps = [p["outside_temp_c"] for p in charge_positions if p.get("outside_temp_c") is not None]
     outside_temp = round(sum(temps) / len(temps), 1) if temps else None

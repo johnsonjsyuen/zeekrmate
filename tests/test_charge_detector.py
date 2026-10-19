@@ -92,3 +92,13 @@ class TestChargeDetector:
             cur.execute("DELETE FROM charge_sessions")
         assert finalize_charge_session(conn, "TEST001", now, end,
                                        dc_threshold_kw=11.0).charge_type == "DC"
+
+    def test_ac_peak_jitter_above_threshold_is_still_ac(self, conn):
+        """E2E-3: 22 kW AC wallboxes report peaks slightly above 22 kW."""
+        db.upsert_vehicle(conn, Vehicle(vin="TEST001"))
+        now = datetime.now(timezone.utc)
+        for i, kw in enumerate((21.8, 22.2, 23.0)):
+            db.insert_position(conn, Position(ts=now + timedelta(minutes=10 * i),
+                                              vin="TEST001", charge_power_kw=kw))
+        cs = finalize_charge_session(conn, "TEST001", now, now + timedelta(minutes=20))
+        assert cs.charge_type == "AC"

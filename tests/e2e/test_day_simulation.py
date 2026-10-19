@@ -472,8 +472,9 @@ def check_charges(conn):
     charges = rows(conn, "SELECT * FROM charge_sessions WHERE vin=%s ORDER BY start_ts", VIN)
     assert len(charges) == len(EXPECTED_CHARGES), [(c["start_ts"], c["end_ts"]) for c in charges]
     for c, (start, ctype, peak) in zip(charges, EXPECTED_CHARGES):
-        # Detection lags by up to one poll interval (sleeping: 300 s).
-        assert -60 <= (c["start_ts"] - start).total_seconds() <= 330, (c["start_ts"], start)
+        # E2E-10: anchored at the last idle reading before the charge, so the
+        # start is at most one poll interval (sleeping: 300 s) early.
+        assert -330 <= (c["start_ts"] - start).total_seconds() <= 60, (c["start_ts"], start)
         assert c["charge_type"] == ctype, c
         assert c["max_power_kw"] == pytest.approx(peak, abs=0.6), c
         assert 0 < c["duration_s"] <= 2 * 3600, c
@@ -554,8 +555,6 @@ def test_real_mapper_wakes_for_morning_drive(cfg, conn, tmp_path, monkeypatch, a
         c.close()
 
 
-@pytest.mark.xfail(strict=True, reason="BUG E2E-3: dc_threshold_kw=22.0 with '>' leaves no margin; "
-                   "a 22 kW AC session reporting 22.1-22.2 kW peak is classed DC")
 def test_22kw_ac_with_realistic_jitter_is_ac(cfg, conn, tmp_path, monkeypatch, admin):
     driving_signal_shim(monkeypatch)
     sim = Simulation(cfg, tmp_path, monkeypatch, admin)

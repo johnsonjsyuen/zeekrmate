@@ -172,7 +172,7 @@ class Poller:
             if state == VehicleState.DRIVING and since is not None:
                 self._drive_start[vin] = self._trip_start(vin, since)
             elif state == VehicleState.CHARGING and since is not None:
-                self._charge_start[vin] = since
+                self._charge_start[vin] = self._charge_start_anchor(vin, since)
         last_ts = latest["ts"] if latest else None
         last_observed = latest.get("observed_at") if latest else None
         if latest:
@@ -416,6 +416,21 @@ class Poller:
             return prev["ts"]
         return ts
 
+    def _charge_start_anchor(self, vin: str, ts: datetime) -> datetime:
+        """E2E-10: like trips, start a charge at the last idle reading before
+        it (when recent), so the session's start SoC is the pre-charge value
+        and the start is not late by a whole poll interval. Never anchors on
+        a driving reading (a drive straight into a charger ends at ``ts``)."""
+        try:
+            prev = db.get_position_before(self.conn, vin, ts)
+        except Exception as e:
+            log.warning("Could not look up pre-charge reading for %s: %s", mask_vin(vin), e)
+            return ts
+        if prev and prev.get("state") in (VehicleState.PARKED.value, VehicleState.SLEEPING.value) \
+                and (ts - prev["ts"]).total_seconds() <= self.trip_prestart_window_s:
+            return prev["ts"]
+        return ts
+
     def _handle_transition(self, vin: str, old: VehicleState, new: VehicleState, ts: datetime,
                            state_recorded: bool = False):
         # Update in-memory bookkeeping first so a DB error cannot lose a drive.
@@ -430,7 +445,7 @@ class Poller:
                 log.warning("Drive end for %s without a known start; trip not recorded", mask_vin(vin))
 
         if new == VehicleState.CHARGING:
-            self._charge_start[vin] = ts
+            self._charge_start[vin] = self._charge_start_anchor(vin, ts)
         elif old == VehicleState.CHARGING:
             start = self._charge_start.pop(vin, None)
             if start is not None:
